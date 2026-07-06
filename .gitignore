@@ -1,6 +1,9 @@
 # ── Per-user private config — NEVER commit these ────────────────────────────
 source-urls.json
 private-config.json
+resume.md
+resume.txt
+resume.pdf
 
 # ── Local secrets ───────────────────────────────────────────────────────────
 .env

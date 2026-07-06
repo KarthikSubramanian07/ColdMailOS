@@ -45,7 +45,7 @@ You're cold-emailing researchers — for a PhD spot, an internship, a UROP, a co
 - 🎓 **Works for any school, any field.** There is *zero* hardcoded university, department, or lab anywhere in this repo. You bring a list of URLs; it figures out the rest. PL theory at CMU, wet-lab bio at a small liberal-arts college, an indie research group's `/people` page — all the same to it.
 - 🧠 **LLM extraction, not brittle scrapers.** Every faculty page has a different HTML layout. Instead of one parser per site, it reads the page like a person would. Add a new URL and it just works.
 - 💸 **Genuinely free to run.** Cloudflare Workers (compute + cron + storage) and Groq (LLM) both have free tiers this comfortably fits inside. Notion and Gmail are free. Your bill is $0.
-- ✍️ **Emails that don't sound like a template.** The draft references the *specific* thing the person researches and *your* actual background — with a banned-clichés list so you never send "I came across your profile and was impressed."
+- ✍️ **Emails that don't sound like a template.** Personalized on *both* sides: the draft references the *specific* thing the person researches **and** *your* real background — your interests, experience, and (optionally) your whole resume/CV — with a banned-clichés list so you never send "I came across your profile and was impressed."
 - 🔒 **Honest by construction.** It never invents an email address, and it can never send mail on your behalf. More on that below.
 - 🧩 **Open source, self-hosted, yours.** Fork it, read every line, run it on your own infra with your own keys. Your background, your target list, and your drafts never touch anyone else's servers.
 
@@ -207,6 +207,14 @@ cp private-config.example.json private-config.json
   "senderEmail": "you@x.edu"
 }
 ```
+
+**Optional but recommended — drop in your resume/CV.** Every email is personalized on *both* sides: the recipient's research **and** your background. For the richest, most specific drafts, add your full resume as a gitignored file:
+
+```bash
+cp resume.example.md resume.md    # then paste your real resume (plain text/markdown)
+```
+
+`npm run config:push` folds `resume.md` (or `resume.txt`) into your profile automatically, so the model can cite concrete, real details about you. It stays private — `resume.md`/`resume.txt`/`resume.pdf` are gitignored and only pushed to *your* Cloudflare KV, never committed. (PDFs aren't parsed — export to text/markdown.) Short on time? The `resumeText` field in `private-config.json` works too, for a few highlights.
 
 ### Step 7 — Set your secrets
 

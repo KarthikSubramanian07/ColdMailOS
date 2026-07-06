@@ -37,7 +37,7 @@
         },
         "resumeText": {
           "type": "string",
-          "description": "Optional. Paste plain-text CV highlights the model can draw concrete details from."
+          "description": "Optional. Plain-text CV highlights the model can draw concrete details from. For a full resume, drop a gitignored resume.md/resume.txt file instead — `npm run config:push` folds its contents in here automatically."
         },
         "tone": {
           "type": "string",
