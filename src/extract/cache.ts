@@ -20,22 +20,34 @@ export async function saveHash(env: Env, url: string, hash: string): Promise<voi
 }
 
 /**
- * Extraction cache, keyed by page content hash. Lets a run that only partially
- * synced a big page reuse the extraction on the next run instead of calling the
- * LLM again. KV ops don't count against the subrequest budget. 30-day TTL.
+ * Extraction state, keyed by page content hash. A big page is extracted a few
+ * chunks per run (so one /scrape stays fast and never times out); progress is
+ * persisted here so the next run resumes at `nextChunk` instead of re-calling
+ * the LLM. `done` flips true once every chunk is extracted. KV ops don't count
+ * against the subrequest budget. 30-day TTL.
  */
-export async function getCachedContacts(env: Env, hash: string): Promise<Contact[] | null> {
+export interface ExtractionState {
+  done: boolean;
+  nextChunk: number;
+  contacts: Contact[];
+}
+
+export async function getExtractionState(env: Env, hash: string): Promise<ExtractionState | null> {
   const raw = await env.KV.get(KV_KEYS.contacts(hash));
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as Contact[];
+    return JSON.parse(raw) as ExtractionState;
   } catch {
     return null;
   }
 }
 
-export async function putCachedContacts(env: Env, hash: string, contacts: Contact[]): Promise<void> {
-  await env.KV.put(KV_KEYS.contacts(hash), JSON.stringify(contacts), {
+export async function putExtractionState(
+  env: Env,
+  hash: string,
+  state: ExtractionState,
+): Promise<void> {
+  await env.KV.put(KV_KEYS.contacts(hash), JSON.stringify(state), {
     expirationTtl: 60 * 60 * 24 * 30,
   });
 }

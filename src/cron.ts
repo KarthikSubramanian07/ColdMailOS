@@ -1,4 +1,4 @@
-import type { Contact, Env, Mode } from "./types";
+import type { Env, Mode } from "./types";
 import { boolVar, intVar, loadMode, loadSourceUrls } from "./config";
 import { fetchPage } from "./extract/fetchPage";
 import { extractContacts, huntEmail } from "./extract/extractWithLLM";
@@ -6,8 +6,9 @@ import {
   hashText,
   isUnchanged,
   saveHash,
-  getCachedContacts,
-  putCachedContacts,
+  getExtractionState,
+  putExtractionState,
+  type ExtractionState,
 } from "./extract/cache";
 import { NotionClient } from "./notion/client";
 import {
@@ -122,42 +123,37 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       continue;
     }
 
-    // Extract (or reuse cached extraction for this exact page content).
-    let contacts = await getCachedContacts(env, hash);
-    if (!contacts) {
-      // Bound LLM work per run: defer this (uncached) page to the next run so a
-      // single /scrape stays fast. Cached pages above still got created.
-      if (llmCalls >= maxLlmPerRun) {
+    // Extract incrementally: a bounded number of chunks per run, persisting
+    // progress so the next run resumes at nextChunk instead of re-calling the
+    // LLM. This keeps a single /scrape fast enough to never time out, even on a
+    // huge directory page that needs several runs to fully extract.
+    const chunks = chunkText(text);
+    const state: ExtractionState =
+      (await getExtractionState(env, hash)) ?? { done: false, nextChunk: 0, contacts: [] };
+
+    while (!state.done && state.nextChunk < chunks.length) {
+      if (llmCalls >= maxLlmPerRun || budget <= SAFETY_MARGIN) {
         report.stoppedEarly = true;
         break;
       }
-      const built: Contact[] = [];
-      let extractionComplete = true;
-      for (const chunk of chunkText(text)) {
-        if (budget <= SAFETY_MARGIN) {
-          extractionComplete = false;
-          report.stoppedEarly = true;
-          break;
-        }
-        try {
-          await throttle();
-          built.push(...(await extractContacts(env, chunk, url, mode)));
-          budget--;
-        } catch (err) {
-          report.errors.push(`extract ${url}: ${errText(err)}`);
-          extractionComplete = false;
-          break;
-        }
+      try {
+        await throttle();
+        state.contacts.push(...(await extractContacts(env, chunks[state.nextChunk], url, mode)));
+        budget--;
+        state.nextChunk++;
+      } catch (err) {
+        report.errors.push(`extract ${url} chunk ${state.nextChunk}: ${errText(err)}`);
+        state.nextChunk++; // skip a persistently-failing chunk so the page can still finish
       }
-      if (!extractionComplete) {
-        // Out of budget mid-extraction → stop the run; error → skip this page.
-        if (budget <= SAFETY_MARGIN) break;
-        report.urlsFailed++;
-        continue;
-      }
-      contacts = dedupeBatch(built);
-      await putCachedContacts(env, hash, contacts); // KV write — not a subrequest
+      await putExtractionState(env, hash, state); // KV write — not a subrequest
     }
+    if (state.nextChunk >= chunks.length) {
+      state.done = true;
+      await putExtractionState(env, hash, state);
+    }
+    if (!state.done) break; // out of per-run budget mid-extraction — resume next run
+
+    const contacts = dedupeBatch(state.contacts);
 
     // Create rows incrementally; only hash the page once fully synced.
     let fullyProcessed = true;
