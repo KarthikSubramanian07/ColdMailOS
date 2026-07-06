@@ -36,4 +36,10 @@ describe("buildRawMessage", () => {
     expect(msg).not.toContain("To:");
     expect(msg).toContain("Subject: Hi");
   });
+
+  it("strips CR/LF from headers so a subject can't inject a Bcc", () => {
+    const msg = decode(buildRawMessage({ to: "a@b.co", subject: "Hi\r\nBcc: evil@x.com", body: "B" }));
+    expect(msg).not.toMatch(/^Bcc:/m); // no injected header line
+    expect(msg).toContain("Subject: Hi Bcc: evil@x.com"); // collapsed to one line
+  });
 });

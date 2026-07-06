@@ -73,8 +73,8 @@ export async function createDraft(env: Env, input: DraftInput): Promise<DraftOut
 /** Build an RFC 2822 message and base64url-encode it for the Gmail API. */
 export function buildRawMessage({ to, subject, body, from }: DraftInput): string {
   const headers = [
-    from ? `From: ${from}` : null,
-    to ? `To: ${to}` : null,
+    from ? `From: ${sanitizeHeader(from)}` : null,
+    to ? `To: ${sanitizeHeader(to)}` : null,
     `Subject: ${encodeHeader(subject)}`,
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
@@ -85,11 +85,17 @@ export function buildRawMessage({ to, subject, body, from }: DraftInput): string
   return base64UrlEncode(message);
 }
 
+/** Strip CR/LF so a header value can't inject additional headers (e.g. Bcc). */
+export function sanitizeHeader(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
 /** RFC 2047 encode a header value if it contains non-ASCII characters. */
 export function encodeHeader(value: string): string {
+  const clean = sanitizeHeader(value);
   // eslint-disable-next-line no-control-regex
-  if (/^[\x00-\x7F]*$/.test(value)) return value;
-  return `=?UTF-8?B?${bytesToBase64(utf8(value))}?=`;
+  if (/^[\x00-\x7F]*$/.test(clean)) return clean;
+  return `=?UTF-8?B?${bytesToBase64(utf8(clean))}?=`;
 }
 
 function utf8(s: string): Uint8Array {
