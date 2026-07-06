@@ -11,7 +11,7 @@ import {
 } from "./extract/cache";
 import { NotionClient } from "./notion/client";
 import {
-  contactKey,
+  contactKeys,
   contactToProperties,
   dedupeBatch,
   duplicatePageIds,
@@ -81,7 +81,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
   // 1) Index existing rows, archive exact duplicates, build the "seen" set.
   const existing = await loadExistingRows(notion, env.NOTION_DATABASE_ID);
   budget -= Math.max(1, Math.ceil(existing.length / 100));
-  const seen = new Set(existing.map((r) => r.key));
+  const seen = new Set(existing.flatMap((r) => r.keys));
   for (const pageId of duplicatePageIds(existing)) {
     if (budget <= SAFETY_MARGIN) break;
     try {
@@ -158,7 +158,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
     let fullyProcessed = true;
     for (const contact of contacts) {
       if (!contact.contact_name) continue;
-      if (seen.has(contactKey(contact))) {
+      if (contactKeys(contact).some((k) => seen.has(k))) {
         report.skippedDuplicate++;
         continue;
       }
@@ -175,14 +175,16 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
         if (found) {
           contact.email = found;
           report.emailsFoundViaFallback++;
-          if (seen.has(contactKey(contact))) {
+          if (contactKeys(contact).some((k) => seen.has(k))) {
             report.skippedDuplicate++;
             continue;
           }
         }
       }
 
-      seen.add(contactKey(contact));
+      // Reserve all of this contact's keys (name+entity and email) so later
+      // pages/runs don't create an email/no-email duplicate of the same person.
+      for (const k of contactKeys(contact)) seen.add(k);
       try {
         await notion.createPage(env.NOTION_DATABASE_ID, contactToProperties(contact));
         budget--;

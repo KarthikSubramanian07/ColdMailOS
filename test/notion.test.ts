@@ -9,8 +9,9 @@ import {
   type NotionPage,
 } from "../src/notion/client";
 import {
-  dedupeKey,
-  contactKey,
+  nameKey,
+  emailKeyOf,
+  contactKeys,
   dedupeBatch,
   duplicatePageIds,
   contactToProperties,
@@ -32,10 +33,12 @@ describe("prop builders", () => {
   it("title wraps content", () => {
     expect(prop.title("Jane")).toEqual({ title: [{ text: { content: "Jane" } }] });
   });
-  it("richText is empty for null and truncates >2000 chars", () => {
+  it("richText is empty for null and splits >2000 chars into blocks", () => {
     expect(prop.richText(null)).toEqual({ rich_text: [] });
     const r = prop.richText("x".repeat(2500)) as { rich_text: { text: { content: string } }[] };
+    expect(r.rich_text).toHaveLength(2);
     expect(r.rich_text[0].text.content.length).toBe(2000);
+    expect(r.rich_text[1].text.content.length).toBe(500);
   });
   it("email is null when empty", () => {
     expect(prop.email("")).toEqual({ email: null });
@@ -73,15 +76,21 @@ describe("property readers", () => {
   });
 });
 
-describe("dedupeKey / contactKey", () => {
-  it("prefers email (lowercased)", () => {
-    expect(dedupeKey("Jane", "MIT", "J@X.EDU")).toBe("email:j@x.edu");
+describe("dedupe keys", () => {
+  it("nameKey is case/space-insensitive on name+entity", () => {
+    expect(nameKey("Jane  Doe", "MIT Lab")).toBe(nameKey("jane doe", "mit lab"));
+    expect(nameKey("A", "B")).toBe("ne:a|b");
   });
-  it("falls back to name+entity, case/space-insensitive", () => {
-    expect(dedupeKey("Jane  Doe", "MIT Lab", null)).toBe(dedupeKey("jane doe", "mit lab", null));
+  it("emailKeyOf lowercases, or null when absent", () => {
+    expect(emailKeyOf("J@X.EDU")).toBe("email:j@x.edu");
+    expect(emailKeyOf(null)).toBe(null);
   });
-  it("contactKey uses the contact's fields", () => {
-    expect(contactKey(mk({ contact_name: "A", entity_name: "B" }))).toBe("ne:a|b");
+  it("contactKeys always includes name+entity, plus email when present", () => {
+    expect(contactKeys(mk({ contact_name: "A", entity_name: "B" }))).toEqual(["ne:a|b"]);
+    expect(contactKeys(mk({ contact_name: "A", entity_name: "B", email: "a@b.co" }))).toEqual([
+      "ne:a|b",
+      "email:a@b.co",
+    ]);
   });
 });
 
@@ -93,6 +102,14 @@ describe("dedupeBatch", () => {
     expect(out).toHaveLength(1);
     expect(out[0].context_summary).toBe("a much longer summary");
     expect(out[0].role).toBe("Prof");
+  });
+  it("collapses the same person listed with and without an email", () => {
+    const out = dedupeBatch([
+      mk({ contact_name: "Jane", entity_name: "MIT" }),
+      mk({ contact_name: "Jane", entity_name: "MIT", email: "jane@x.edu" }),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].email).toBe("jane@x.edu");
   });
   it("keeps distinct people separate", () => {
     const out = dedupeBatch([
@@ -107,16 +124,17 @@ describe("dedupeBatch", () => {
 });
 
 describe("duplicatePageIds", () => {
-  it("archives all but the most complete row per key", () => {
+  it("groups by name+entity and archives all but the most complete row", () => {
     const rows = [
-      { pageId: "a", key: "email:j@x.edu", filled: 1 },
-      { pageId: "b", key: "email:j@x.edu", filled: 3 },
-      { pageId: "c", key: "ne:solo|", filled: 0 },
+      { pageId: "a", nameKey: "ne:jane|mit", keys: ["ne:jane|mit"], filled: 1 },
+      { pageId: "b", nameKey: "ne:jane|mit", keys: ["ne:jane|mit", "email:j@x.edu"], filled: 3 },
+      { pageId: "c", nameKey: "ne:solo|", keys: ["ne:solo|"], filled: 0 },
     ];
+    // catches the email/no-email duplicate of the same person (a is archived, b kept)
     expect(duplicatePageIds(rows)).toEqual(["a"]);
   });
   it("returns nothing when there are no duplicates", () => {
-    expect(duplicatePageIds([{ pageId: "a", key: "k1", filled: 0 }])).toEqual([]);
+    expect(duplicatePageIds([{ pageId: "a", nameKey: "k1", keys: ["k1"], filled: 0 }])).toEqual([]);
   });
 });
 

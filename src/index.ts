@@ -2,6 +2,14 @@ import type { Env } from "./types";
 import { runScrape } from "./cron";
 import { handleWebhook } from "./webhook/handler";
 
+/** Constant-time string comparison to avoid leaking the secret via timing. */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 /**
  * ColdMailOS Worker entry.
  *   scheduled → the weekly scrape (extract contacts → Notion).
@@ -25,7 +33,9 @@ export default {
     // the request lifetime instead of being cancelled ~30s after the response.
     if (request.method === "POST" && url.pathname === "/scrape") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
-      if (secret !== env.WEBHOOK_SECRET) return new Response("unauthorized\n", { status: 401 });
+      if (!timingSafeEqual(secret, env.WEBHOOK_SECRET)) {
+        return new Response("unauthorized\n", { status: 401 });
+      }
       try {
         const report = await runScrape(env);
         return new Response(JSON.stringify(report, null, 2) + "\n", {

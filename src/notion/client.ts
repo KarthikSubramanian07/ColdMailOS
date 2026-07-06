@@ -70,8 +70,10 @@ export class NotionClient {
 
 export const prop = {
   title: (text: string) => ({ title: [{ text: { content: truncate(text, 2000) } }] }),
+  // Notion caps a single rich_text object at 2000 chars, so split longer values
+  // across multiple blocks instead of truncating (e.g. a full email draft body).
   richText: (text: string | null) =>
-    text ? { rich_text: [{ text: { content: truncate(text, 2000) } }] } : { rich_text: [] },
+    text ? { rich_text: splitRichText(text) } : { rich_text: [] },
   email: (email: string | null) => ({ email: email || null }),
   url: (url: string | null) => ({ url: url || null }),
   select: (name: string) => ({ select: { name } }),
@@ -100,6 +102,15 @@ export function readCheckbox(page: NotionPage, name: string): boolean {
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) : s;
+}
+
+/** Split text into ≤2000-char rich_text blocks (Notion caps ~100 blocks). */
+function splitRichText(text: string): { text: { content: string } }[] {
+  const blocks: { text: { content: string } }[] = [];
+  for (let i = 0; i < text.length && blocks.length < 100; i += 2000) {
+    blocks.push({ text: { content: text.slice(i, i + 2000) } });
+  }
+  return blocks;
 }
 
 // ── Minimal Notion response types (only what we read) ───────────────────────

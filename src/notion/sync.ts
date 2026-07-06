@@ -20,25 +20,31 @@ export function contactToProperties(contact: Contact): Record<string, unknown> {
 }
 
 /**
- * Dedupe key: email if present (most reliable), else name+entity lowercased.
- * Two rows with the same key are considered exact duplicates.
+ * Dedupe keys for a contact. The name+entity key is ALWAYS present and is the
+ * stable identity; the email key is added when an email exists. A contact is a
+ * duplicate if ANY of its keys matches a seen key — this collapses the case
+ * where the same person appears with an email in one source and without it in
+ * another (which would otherwise create two rows).
  */
-export function dedupeKey(name: string, entity: string | null, email: string | null): string {
-  if (email) return `email:${email.toLowerCase().trim()}`;
-  const n = norm(name);
-  const e = norm(entity ?? "");
-  return `ne:${n}|${e}`;
+export function nameKey(name: string, entity: string | null): string {
+  return `ne:${norm(name)}|${norm(entity ?? "")}`;
+}
+export function emailKeyOf(email: string | null): string | null {
+  return email ? `email:${email.toLowerCase().trim()}` : null;
+}
+export function contactKeys(c: Contact): string[] {
+  const keys = [nameKey(c.contact_name, c.entity_name)];
+  const ek = emailKeyOf(c.email);
+  if (ek) keys.push(ek);
+  return keys;
 }
 
-export const contactKey = (c: Contact): string =>
-  dedupeKey(c.contact_name, c.entity_name, c.email);
-
-/** Collapse duplicates within a single scrape batch, merging info. */
+/** Collapse duplicates within a single scrape batch (by name+entity), merging info. */
 export function dedupeBatch(contacts: Contact[]): Contact[] {
   const map = new Map<string, Contact>();
   for (const c of contacts) {
     if (!c.contact_name) continue;
-    const key = contactKey(c);
+    const key = nameKey(c.contact_name, c.entity_name);
     const existing = map.get(key);
     map.set(key, existing ? mergeContacts(existing, c) : c);
   }
@@ -49,11 +55,12 @@ export function dedupeBatch(contacts: Contact[]): Contact[] {
 
 export interface ExistingRow {
   pageId: string;
-  key: string;
-  filled: number; // how many optional fields are populated (completeness score)
+  nameKey: string; // grouping identity (always present)
+  keys: string[]; // all keys this row occupies (name+entity, and email if any)
+  filled: number; // completeness score (which optional fields are populated)
 }
 
-/** Read every row and index it by dedupe key with a completeness score. */
+/** Read every row and index it with its dedupe keys and a completeness score. */
 export async function loadExistingRows(
   notion: NotionClient,
   databaseId: string,
@@ -63,26 +70,30 @@ export async function loadExistingRows(
     const name = readTitle(page, PROPS.contactName);
     const entity = readRichText(page, PROPS.entity) || null;
     const email = readEmail(page, PROPS.email);
+    const nk = nameKey(name, entity);
+    const ek = emailKeyOf(email);
     const filled =
       (email ? 1 : 0) +
       (readRichText(page, PROPS.contextSummary) ? 1 : 0) +
       (readRichText(page, PROPS.role) ? 1 : 0) +
       (entity ? 1 : 0);
-    rows.push({ pageId: page.id, key: dedupeKey(name, entity, email), filled });
+    rows.push({ pageId: page.id, nameKey: nk, keys: ek ? [nk, ek] : [nk], filled });
   }
   return rows;
 }
 
 /**
- * Given all rows, return the page IDs of EXACT duplicates that should be
- * archived — keeping, per key, the most complete row (ties: keep the first).
+ * Given all rows, return the page IDs of duplicates to archive — grouping by the
+ * name+entity identity and keeping, per group, the most complete row (ties keep
+ * the first). Grouping by name+entity (not email) catches same-person rows that
+ * differ only by whether an email was captured.
  */
 export function duplicatePageIds(rows: ExistingRow[]): string[] {
   const byKey = new Map<string, ExistingRow[]>();
   for (const r of rows) {
-    const group = byKey.get(r.key);
+    const group = byKey.get(r.nameKey);
     if (group) group.push(r);
-    else byKey.set(r.key, [r]);
+    else byKey.set(r.nameKey, [r]);
   }
   const toArchive: string[] = [];
   for (const group of byKey.values()) {
