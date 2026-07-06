@@ -10,6 +10,7 @@ It reads the pages, pulls out the people (and what they work on), and drops them
 
 <br>
 
+[![CI](https://github.com/KarthikSubramanian07/ColdMailOS/actions/workflows/ci.yml/badge.svg)](https://github.com/KarthikSubramanian07/ColdMailOS/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)
 ![Cloudflare Workers](https://img.shields.io/badge/Runs%20on-Cloudflare%20Workers-F38020?logo=cloudflare&logoColor=white)
 ![Groq](https://img.shields.io/badge/LLM-Groq-000000)
@@ -364,6 +365,21 @@ coldmailos/
 ```
 
 ---
+
+## 🧪 Tests & CI/CD
+
+Pure logic (extraction parsing, HTML→text, dedupe, prompt selection, MIME/base64, config) is covered by a [vitest](https://vitest.dev) unit suite:
+
+```bash
+npm test           # run once
+npm run test:watch # watch mode
+npm run typecheck  # tsc --noEmit
+```
+
+Two GitHub Actions pipelines ([.github/workflows](.github/workflows)):
+
+- **CI** (`ci.yml`) — on every push/PR, across Node 20 & 22: typecheck → unit tests → a `wrangler --dry-run` build check.
+- **CD** (`deploy.yml`) — on push to `main`: runs the tests, then deploys **both** environments. It's a no-op until you add a `CLOUDFLARE_API_TOKEN` repo secret (Settings → Secrets and variables → Actions), created from Cloudflare's "Edit Cloudflare Workers" API-token template. Runtime secrets (Groq/Notion/Gmail) already live in Cloudflare, so CD only ships code.
 
 ## 🤝 Contributing
 

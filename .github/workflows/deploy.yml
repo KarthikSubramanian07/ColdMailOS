@@ -1,0 +1,42 @@
+name: Deploy
+
+# Deploys both environments on every push to main — but only if the
+# CLOUDFLARE_API_TOKEN repo secret is configured. Tests must pass first.
+# Add the secret at: Settings → Secrets and variables → Actions → New secret.
+# Create the token at: Cloudflare dashboard → My Profile → API Tokens
+# (use the "Edit Cloudflare Workers" template).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: test + deploy
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Deploy research
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx wrangler deploy --env research
+
+      - name: Deploy startups
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx wrangler deploy --env startups
+
+      - name: Note if token missing
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::CLOUDFLARE_API_TOKEN not set — skipped deploy. Add it in repo secrets to enable CD."
