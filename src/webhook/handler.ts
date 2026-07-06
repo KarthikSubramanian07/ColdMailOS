@@ -12,6 +12,7 @@ import {
 import { PROPS } from "../notion/schema";
 import { draftEmail } from "../drafting/groq";
 import { createDraft } from "../gmail/drafts";
+import { timingSafeEqual } from "../security";
 
 /**
  * Handles the POST from Notion's "Send webhook" automations:
@@ -103,13 +104,6 @@ function verifySecret(request: Request, env: Env): boolean {
     url.searchParams.get("secret") ??
     "";
   return timingSafeEqual(provided, env.WEBHOOK_SECRET);
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 function extractChallenge(body: unknown): string | null {

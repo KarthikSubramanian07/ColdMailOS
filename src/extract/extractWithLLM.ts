@@ -1,6 +1,5 @@
 import type { Contact, Env, Mode } from "../types";
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+import { groqJson } from "../groqClient";
 
 const COMMON_RULES = `Rules:
   - Do NOT fabricate any field. When in doubt, use null.
@@ -41,11 +40,6 @@ export function extractionPrompt(mode: Mode): string {
   return mode === "startup" ? STARTUP_PROMPT : RESEARCH_PROMPT;
 }
 
-interface GroqResponse {
-  choices?: { message?: { content?: string } }[];
-  error?: { message?: string };
-}
-
 /** Run structured extraction over one page's plain text, per mode. */
 export async function extractContacts(
   env: Env,
@@ -55,7 +49,7 @@ export async function extractContacts(
 ): Promise<Contact[]> {
   if (!pageText.trim()) return [];
 
-  const content = await callGroq(env, [
+  const content = await groqJson(env, [
     { role: "system", content: extractionPrompt(mode) },
     { role: "user", content: `PAGE URL: ${sourceUrl}\n\nPAGE TEXT:\n${pageText}` },
   ]);
@@ -66,7 +60,7 @@ export async function extractContacts(
 /** Startup fallback: look for a visible contact/careers email on a company page. */
 export async function huntEmail(env: Env, pageText: string): Promise<string | null> {
   if (!pageText.trim()) return null;
-  const content = await callGroq(env, [
+  const content = await groqJson(env, [
     { role: "system", content: EMAIL_HUNT_PROMPT },
     { role: "user", content: pageText },
   ]);
@@ -76,39 +70,6 @@ export async function huntEmail(env: Env, pageText: string): Promise<string | nu
   } catch {
     return null;
   }
-}
-
-/** POST to Groq with json_object mode, retrying on 429/5xx with backoff. */
-async function callGroq(env: Env, messages: { role: string; content: string }[]): Promise<string> {
-  const payload = JSON.stringify({
-    model: env.GROQ_MODEL,
-    temperature: 0,
-    response_format: { type: "json_object" },
-    messages,
-  });
-
-  let res: Response | null = null;
-  const maxAttempts = 4;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${env.GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: payload,
-    });
-    if (res.status !== 429 && res.status < 500) break;
-    if (attempt === maxAttempts - 1) break;
-    const retryAfter = Number(res.headers.get("retry-after"));
-    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 1000;
-    await new Promise((r) => setTimeout(r, waitMs + 300));
-  }
-
-  if (!res || !res.ok) {
-    const detail = res ? await res.text().catch(() => "") : "no response";
-    throw new Error(`Groq call failed (${res?.status}): ${detail}`);
-  }
-  const data = (await res.json()) as GroqResponse;
-  if (data.error) throw new Error(`Groq error: ${data.error.message}`);
-  return data.choices?.[0]?.message?.content ?? "{}";
 }
 
 export function parseContacts(content: string): Partial<Contact>[] {
