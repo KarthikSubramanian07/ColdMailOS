@@ -16,6 +16,7 @@ It reads the pages, pulls out the people (and what they work on), and drops them
 ![Notion](https://img.shields.io/badge/UI-Notion-000000?logo=notion&logoColor=white)
 ![Cost](https://img.shields.io/badge/Cost-%240%2Fmo-brightgreen)
 ![PRs welcome](https://img.shields.io/badge/PRs-welcome-blueviolet.svg)
+[![Buy Me a Coffee](https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-support-FFDD00)](https://buymeacoffee.com/winnerkarthik)
 
 </div>
 
@@ -367,6 +368,14 @@ coldmailos/
 ## 🤝 Contributing
 
 Issues and PRs welcome. Keep the non-negotiables intact — **never fabricate emails, never send mail** — and keep the repo free of hardcoded targets. Good first PRs: more robust readability extraction, additional modes, tone presets, a one-click Notion template.
+
+## ☕ Support
+
+ColdMailOS is free and open source. If it helped you land a conversation — an advisor, an internship, a first reply — you can say thanks:
+
+<a href="https://buymeacoffee.com/winnerkarthik"><img src="https://img.shields.io/badge/%E2%98%95%20Buy%20me%20a%20coffee-winnerkarthik-FFDD00?style=for-the-badge" alt="Buy me a coffee"></a>
+
+No pressure, always appreciated. ⭐ Starring the repo helps too.
 
 ## 📄 License
 
