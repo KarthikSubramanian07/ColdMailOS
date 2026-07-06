@@ -1,0 +1,45 @@
+# ────────────────────────────────────────────────────────────────────────────
+#  ResearchMailOS — Cloudflare Worker config
+#
+#  This file IS committed. It contains no secrets — only bindings and defaults.
+#  Secrets live in `wrangler secret` (see README). Per-user config (your list of
+#  URLs, your background) lives in KV, pushed with `npm run config:push`.
+# ────────────────────────────────────────────────────────────────────────────
+
+name = "researchmailos"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Weekly scrape — Mondays at 06:00 UTC. Faculty pages barely change; combined
+# with content-hash caching this keeps LLM usage near zero. Tweak freely.
+[triggers]
+crons = ["0 6 * * 1"]
+
+# One KV namespace holds BOTH the per-user config (source URLs + your profile)
+# and the per-URL content hashes used to skip unchanged pages.
+#   Create it with:  wrangler kv namespace create KV
+#   then paste the returned id below.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Non-secret tunables. Safe to commit.
+[vars]
+GROQ_MODEL = "llama-3.3-70b-versatile"
+NOTION_VERSION = "2022-06-28"
+# Set to "true" to also fetch each person's linked profile page for a second
+# extraction pass (catches emails/research that only live on personal pages).
+ENABLE_PROFILE_SECOND_PASS = "false"
+# Safety cap so one run can never blow the Groq daily free-tier budget.
+MAX_PAGES_PER_RUN = "200"
+# Milliseconds to wait between LLM calls (Groq free tier is 30 req/min).
+LLM_THROTTLE_MS = "2200"
+
+# ── Secrets to set (never committed) ────────────────────────────────────────
+#   wrangler secret put GROQ_API_KEY
+#   wrangler secret put NOTION_TOKEN
+#   wrangler secret put NOTION_DATABASE_ID
+#   wrangler secret put WEBHOOK_SECRET
+#   wrangler secret put GOOGLE_CLIENT_ID
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+#   wrangler secret put GMAIL_REFRESH_TOKEN

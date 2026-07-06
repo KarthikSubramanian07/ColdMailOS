@@ -1,0 +1,19 @@
+# ── Per-user private config — NEVER commit these ────────────────────────────
+source-urls.json
+private-config.json
+
+# ── Local secrets ───────────────────────────────────────────────────────────
+.env
+.dev.vars
+
+# ── Dependencies / build / tooling ──────────────────────────────────────────
+node_modules/
+dist/
+.wrangler/
+.mf/
+
+# ── Noise ───────────────────────────────────────────────────────────────────
+*.log
+.DS_Store
+.idea/
+.vscode/
