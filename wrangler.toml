@@ -26,6 +26,7 @@ ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
+MAX_LLM_CALLS_PER_RUN = "6"
 
 [[kv_namespaces]]
 binding = "KV"
@@ -45,6 +46,7 @@ ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
+MAX_LLM_CALLS_PER_RUN = "6"
 
 [[env.research.kv_namespaces]]
 binding = "KV"
@@ -66,10 +68,11 @@ ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
+MAX_LLM_CALLS_PER_RUN = "6"
 
 [[env.startups.kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_STARTUPS_KV_NAMESPACE_ID"
+id = "035bd93375784918b935e84cb28953a8"
 
 [env.startups.triggers]
 crons = ["0 6 * * 1"]

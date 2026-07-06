@@ -10,6 +10,7 @@ export const KV_KEYS = {
   sourceUrls: "config:source-urls",
   profile: "config:profile",
   hash: (url: string) => `hash:${url}`,
+  contacts: (hash: string) => `contacts:${hash}`,
 } as const;
 
 export async function loadSourceUrls(env: Env): Promise<string[]> {

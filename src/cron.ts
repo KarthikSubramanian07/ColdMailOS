@@ -2,7 +2,13 @@ import type { Contact, Env, Mode } from "./types";
 import { boolVar, intVar, loadMode, loadSourceUrls } from "./config";
 import { fetchPage } from "./extract/fetchPage";
 import { extractContacts, huntEmail } from "./extract/extractWithLLM";
-import { hashText, isUnchanged, saveHash } from "./extract/cache";
+import {
+  hashText,
+  isUnchanged,
+  saveHash,
+  getCachedContacts,
+  putCachedContacts,
+} from "./extract/cache";
 import { NotionClient } from "./notion/client";
 import {
   contactKey,
@@ -26,16 +32,20 @@ export interface ScrapeReport {
   errors: string[];
 }
 
-/** Subrequests we reserve as headroom before the free-plan cap of 50. */
+/** Subrequests reserved as headroom before the free-plan cap of 50. */
 const SAFETY_MARGIN = 3;
+/** Characters per LLM extraction chunk (large pages are split, then merged). */
+const CHUNK_CHARS = 24_000;
+const CHUNK_OVERLAP = 800;
 
 /**
  * The scrape job. Fetches each page, skips unchanged ones (content hash),
- * extracts contacts per mode, optionally hunts an email on a linked page, then
- * incrementally creates Notion rows — respecting the free-plan subrequest
- * budget so a run never gets killed mid-flight. A page's hash is saved ONLY
- * when all its contacts were written, so repeated runs converge on big pages.
- * Also archives exact-duplicate rows.
+ * extracts contacts per mode — CHUNKING large pages so nobody is truncated
+ * away — then incrementally creates Notion rows within the free-plan
+ * subrequest budget. Extractions are cached by content hash, so a big page
+ * that needs several runs to fully sync is only sent to the LLM once. A page's
+ * hash is saved ONLY when all its contacts are written. Also archives exact
+ * duplicates.
  */
 export async function runScrape(env: Env): Promise<ScrapeReport> {
   const urls = await loadSourceUrls(env);
@@ -44,6 +54,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
   const throttleMs = intVar(env.LLM_THROTTLE_MS, 2200);
   const enrichEnabled = mode === "startup" || boolVar(env.ENABLE_PROFILE_SECOND_PASS);
   const budgetMax = intVar(env.MAX_SUBREQUESTS, 45);
+  const maxLlmPerRun = intVar(env.MAX_LLM_CALLS_PER_RUN, 6);
 
   const notion = new NotionClient(env);
   const report: ScrapeReport = {
@@ -89,6 +100,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       report.stoppedEarly = true;
       break;
     }
+
     let text: string;
     try {
       text = await fetchPage(url);
@@ -105,23 +117,48 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       continue;
     }
 
-    let contacts: Contact[];
-    try {
-      await throttle();
-      contacts = await extractContacts(env, text, url, mode);
-      budget--;
-    } catch (err) {
-      report.urlsFailed++;
-      report.errors.push(`extract ${url}: ${errText(err)}`);
-      continue;
+    // Extract (or reuse cached extraction for this exact page content).
+    let contacts = await getCachedContacts(env, hash);
+    if (!contacts) {
+      // Bound LLM work per run: defer this (uncached) page to the next run so a
+      // single /scrape stays fast. Cached pages above still got created.
+      if (llmCalls >= maxLlmPerRun) {
+        report.stoppedEarly = true;
+        break;
+      }
+      const built: Contact[] = [];
+      let extractionComplete = true;
+      for (const chunk of chunkText(text)) {
+        if (budget <= SAFETY_MARGIN) {
+          extractionComplete = false;
+          report.stoppedEarly = true;
+          break;
+        }
+        try {
+          await throttle();
+          built.push(...(await extractContacts(env, chunk, url, mode)));
+          budget--;
+        } catch (err) {
+          report.errors.push(`extract ${url}: ${errText(err)}`);
+          extractionComplete = false;
+          break;
+        }
+      }
+      if (!extractionComplete) {
+        // Out of budget mid-extraction → stop the run; error → skip this page.
+        if (budget <= SAFETY_MARGIN) break;
+        report.urlsFailed++;
+        continue;
+      }
+      contacts = dedupeBatch(built);
+      await putCachedContacts(env, hash, contacts); // KV write — not a subrequest
     }
 
-    // Create rows incrementally; only hash the page if we finish it.
+    // Create rows incrementally; only hash the page once fully synced.
     let fullyProcessed = true;
-    for (const contact of dedupeBatch(contacts)) {
+    for (const contact of contacts) {
       if (!contact.contact_name) continue;
-      const key = contactKey(contact);
-      if (seen.has(key)) {
+      if (seen.has(contactKey(contact))) {
         report.skippedDuplicate++;
         continue;
       }
@@ -131,16 +168,14 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
         break;
       }
 
-      // Optional email fallback on a linked page.
+      // Optional email fallback on a linked page (always on in startup mode).
       if (!contact.email && contact.profile_url && enrichEnabled && maxEnrich > 0 && budget > 8) {
         maxEnrich--;
         const found = await tryFindEmail(env, contact.profile_url, mode, throttle, () => budget--);
         if (found) {
           contact.email = found;
           report.emailsFoundViaFallback++;
-          // Re-key on email; skip if that email already exists.
-          const emailKey = contactKey(contact);
-          if (seen.has(emailKey)) {
+          if (seen.has(contactKey(contact))) {
             report.skippedDuplicate++;
             continue;
           }
@@ -163,12 +198,21 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       await saveHash(env, url, hash);
       report.urlsProcessed++;
     } else {
-      break; // out of budget — leave this page unhashed so the next run resumes it
+      break; // out of budget — leave unhashed so the next run resumes this page
     }
   }
 
   console.log("[scrape]", JSON.stringify(report));
   return report;
+}
+
+/** Split large page text into overlapping chunks so no one gets truncated away. */
+function chunkText(text: string): string[] {
+  if (text.length <= CHUNK_CHARS) return [text];
+  const chunks: string[] = [];
+  const step = CHUNK_CHARS - CHUNK_OVERLAP;
+  for (let i = 0; i < text.length; i += step) chunks.push(text.slice(i, i + CHUNK_CHARS));
+  return chunks;
 }
 
 /** Try a few common paths on a company/profile site for a visible email. */

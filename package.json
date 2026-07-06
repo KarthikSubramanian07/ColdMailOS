@@ -1,7 +1,7 @@
 {
   "name": "coldmailos",
   "version": "0.1.0",
-  "description": "Open-source pipeline that extracts contacts from any list of pages — labs, VC portfolios, anywhere — syncs to Notion, and drafts personalized cold outreach emails with AI. Runs entirely on free infrastructure.",
+  "description": "Open-source pipeline that finds researchers from any lab/startup page, syncs to Notion, and drafts personalized cold emails for research or internship outreach.",
   "type": "module",
   "license": "MIT",
   "keywords": [

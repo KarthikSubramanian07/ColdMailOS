@@ -22,6 +22,8 @@ export interface Env {
   LLM_THROTTLE_MS: string;
   /** Free-plan Workers allow 50 subrequests per invocation; stay under it. */
   MAX_SUBREQUESTS: string;
+  /** Cap LLM extraction calls per run so a single /scrape finishes quickly. */
+  MAX_LLM_CALLS_PER_RUN: string;
 }
 
 /** Outreach mode. Free string (not a strict enum) so new modes are trivial. */
