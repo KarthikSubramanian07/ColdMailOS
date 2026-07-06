@@ -34,9 +34,14 @@ export interface ScrapeReport {
 
 /** Subrequests reserved as headroom before the free-plan cap of 50. */
 const SAFETY_MARGIN = 3;
-/** Characters per LLM extraction chunk (large pages are split, then merged). */
-const CHUNK_CHARS = 24_000;
-const CHUNK_OVERLAP = 800;
+/**
+ * Characters per LLM extraction chunk. Kept modest on purpose: a dense
+ * directory chunk yields one JSON object per person, and too many at once
+ * overflows the model's output-token limit → truncated, unparseable JSON →
+ * zero contacts. Smaller chunks keep each response comfortably parseable.
+ */
+const CHUNK_CHARS = 7_000;
+const CHUNK_OVERLAP = 500;
 
 /**
  * The scrape job. Fetches each page, skips unchanged ones (content hash),
