@@ -37,7 +37,7 @@ ${COMMON_RULES}`;
 
 const EMAIL_HUNT_PROMPT = `You are given the text of a company website page. Find a single best contact or careers email address that is EXPLICITLY shown on the page (e.g. careers@, jobs@, hello@, or a founder's address). Do not guess or construct an address from a name/domain. Return STRICT JSON: {"email": "<address>"} or {"email": null} if none is visibly present.`;
 
-function extractionPrompt(mode: Mode): string {
+export function extractionPrompt(mode: Mode): string {
   return mode === "startup" ? STARTUP_PROMPT : RESEARCH_PROMPT;
 }
 
@@ -111,7 +111,7 @@ async function callGroq(env: Env, messages: { role: string; content: string }[])
   return data.choices?.[0]?.message?.content ?? "{}";
 }
 
-function parseContacts(content: string): Partial<Contact>[] {
+export function parseContacts(content: string): Partial<Contact>[] {
   let obj: unknown;
   try {
     obj = JSON.parse(content);
@@ -126,7 +126,7 @@ function parseContacts(content: string): Partial<Contact>[] {
   return arr.filter((x): x is Partial<Contact> => !!x && typeof x === "object");
 }
 
-function normalizeContact(c: Partial<Contact>, sourceUrl: string): Contact {
+export function normalizeContact(c: Partial<Contact>, sourceUrl: string): Contact {
   return {
     contact_name: clean(c.contact_name) ?? "",
     role: clean(c.role),
@@ -146,7 +146,7 @@ function clean(v: unknown): string | null {
 }
 
 /** Guard against a fabricated address: require a real-looking email. */
-function validEmail(email: string): string | null {
+export function validEmail(email: string): string | null {
   const e = email.trim().toLowerCase();
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) ? e : null;
 }

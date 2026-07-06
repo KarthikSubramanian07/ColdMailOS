@@ -25,6 +25,8 @@
     "deploy:research": "wrangler deploy --env research",
     "deploy:startups": "wrangler deploy --env startups",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "tail": "wrangler tail --format pretty",
     "config:push": "node scripts/push-config.mjs",
     "gmail:auth": "node scripts/get-gmail-token.mjs"
@@ -32,6 +34,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
     "typescript": "^5.6.2",
+    "vitest": "^4.1.9",
     "wrangler": "^4.107.0"
   }
 }

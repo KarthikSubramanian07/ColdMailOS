@@ -29,11 +29,13 @@ export async function fetchPage(url: string): Promise<string> {
 export function htmlToText(html: string): string {
   let s = html;
 
-  // Surface useful hrefs BEFORE we destroy the tags.
-  //   <a href="mailto:x@y.edu">Name</a>  →  "Name <x@y.edu>"
+  // Surface useful hrefs BEFORE we destroy the tags. Note: no angle brackets —
+  // the tag-stripper below would delete anything that looks like "<...>", which
+  // would drop the email we're trying to preserve.
+  //   <a href="mailto:x@y.edu">Name</a>  →  "Name x@y.edu"
   s = s.replace(
     /<a\b[^>]*href\s*=\s*["']mailto:([^"'?]+)[^>]*>([\s\S]*?)<\/a>/gi,
-    (_m, email, inner) => `${stripTags(inner)} <${decodeEntities(email)}>`,
+    (_m, email, inner) => `${stripTags(inner)} ${decodeEntities(email)}`,
   );
   //   <a href="https://…/~jdoe">Jane Doe</a>  →  "Jane Doe (https://…/~jdoe)"
   s = s.replace(

@@ -207,7 +207,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
 }
 
 /** Split large page text into overlapping chunks so no one gets truncated away. */
-function chunkText(text: string): string[] {
+export function chunkText(text: string): string[] {
   if (text.length <= CHUNK_CHARS) return [text];
   const chunks: string[] = [];
   const step = CHUNK_CHARS - CHUNK_OVERLAP;
@@ -239,7 +239,7 @@ async function tryFindEmail(
   return null;
 }
 
-function candidatePages(url: string, mode: Mode): string[] {
+export function candidatePages(url: string, mode: Mode): string[] {
   if (mode !== "startup") return [url];
   try {
     const origin = new URL(url).origin;

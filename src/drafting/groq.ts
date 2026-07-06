@@ -29,7 +29,7 @@ Hard rules:
   - If a signature is provided, end the body with it verbatim. Otherwise sign with the sender's name.
   - Return STRICT JSON: {"subject": "...", "body": "..."}. The body uses real newlines between paragraphs.`;
 
-function systemPrompt(mode: Mode): string {
+export function systemPrompt(mode: Mode): string {
   return mode === "startup" ? STARTUP_SYSTEM : RESEARCH_SYSTEM;
 }
 
@@ -69,7 +69,7 @@ export async function draftEmail(
   return parseDraft(data.choices?.[0]?.message?.content ?? "{}", profile);
 }
 
-function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
+export function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
   const recipientLabel = profile.mode === "startup" ? "FOUNDER / COMPANY" : "RECIPIENT";
   const lines = [
     `── ${recipientLabel} ──`,
@@ -93,7 +93,7 @@ function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
   return lines.filter(Boolean).join("\n");
 }
 
-function parseDraft(content: string, profile: ProfileConfig): DraftResult {
+export function parseDraft(content: string, profile: ProfileConfig): DraftResult {
   try {
     const obj = JSON.parse(content) as Partial<DraftResult>;
     const subject = (obj.subject ?? "").trim();

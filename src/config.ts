@@ -51,7 +51,7 @@ export async function loadMode(env: Env): Promise<Mode> {
   }
 }
 
-const normalizeMode = (m: unknown): Mode =>
+export const normalizeMode = (m: unknown): Mode =>
   typeof m === "string" && m.trim() ? (m.trim().toLowerCase() as Mode) : "research";
 
 /** Parse a "true"/"false" string var into a boolean. */

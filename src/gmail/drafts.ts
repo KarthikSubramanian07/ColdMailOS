@@ -71,7 +71,7 @@ export async function createDraft(env: Env, input: DraftInput): Promise<DraftOut
 }
 
 /** Build an RFC 2822 message and base64url-encode it for the Gmail API. */
-function buildRawMessage({ to, subject, body, from }: DraftInput): string {
+export function buildRawMessage({ to, subject, body, from }: DraftInput): string {
   const headers = [
     from ? `From: ${from}` : null,
     to ? `To: ${to}` : null,
@@ -86,7 +86,7 @@ function buildRawMessage({ to, subject, body, from }: DraftInput): string {
 }
 
 /** RFC 2047 encode a header value if it contains non-ASCII characters. */
-function encodeHeader(value: string): string {
+export function encodeHeader(value: string): string {
   // eslint-disable-next-line no-control-regex
   if (/^[\x00-\x7F]*$/.test(value)) return value;
   return `=?UTF-8?B?${bytesToBase64(utf8(value))}?=`;
@@ -102,6 +102,6 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64UrlEncode(s: string): string {
+export function base64UrlEncode(s: string): string {
   return bytesToBase64(utf8(s)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
