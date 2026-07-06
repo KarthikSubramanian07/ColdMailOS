@@ -21,9 +21,9 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const local = process.argv.includes("--local");
-// Remote is the default target for `wrangler kv key put`; only pass a flag for
-// local. (Wrangler v3 has no `--remote` flag — remote is implicit.)
-const scopeArgs = local ? ["--local"] : [];
+// Wrangler v4 defaults KV commands to LOCAL, so pass --remote explicitly for the
+// deployed namespace (or --local for the dev one).
+const scopeArgs = local ? ["--local"] : ["--remote"];
 const scopeLabel = local ? "local" : "remote";
 
 // Target a specific deployment's KV namespace, e.g. `npm run config:push -- --env startups`.
