@@ -1,7 +1,7 @@
 {
-  "name": "researchmailos",
+  "name": "coldmailos",
   "version": "0.1.0",
-  "description": "Point it at any list of lab/department/faculty pages, get structured researchers + research focus out, and turn a Notion checkbox into a personalized Gmail draft. Runs entirely on free infrastructure.",
+  "description": "Open-source pipeline that extracts contacts from any list of pages — labs, VC portfolios, anywhere — syncs to Notion, and drafts personalized cold outreach emails with AI. Runs entirely on free infrastructure.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -9,9 +9,10 @@
     "notion",
     "groq",
     "gmail",
-    "research",
     "cold-email",
     "outreach",
+    "research",
+    "startups",
     "scraping",
     "llm"
   ],
@@ -21,9 +22,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "deploy:research": "wrangler deploy --env research",
+    "deploy:startups": "wrangler deploy --env startups",
     "typecheck": "tsc --noEmit",
     "tail": "wrangler tail --format pretty",
-    "scrape:now": "wrangler dev --test-scheduled",
     "config:push": "node scripts/push-config.mjs",
     "gmail:auth": "node scripts/get-gmail-token.mjs"
   },

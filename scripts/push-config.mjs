@@ -25,12 +25,19 @@ const local = process.argv.includes("--local");
 // local. (Wrangler v3 has no `--remote` flag — remote is implicit.)
 const scopeArgs = local ? ["--local"] : [];
 const scopeLabel = local ? "local" : "remote";
+
+// Target a specific deployment's KV namespace, e.g. `npm run config:push -- --env startups`.
+const envIdx = process.argv.indexOf("--env");
+const envName = envIdx >= 0 ? process.argv[envIdx + 1] : null;
+const envArgs = envName ? ["--env", envName] : [];
+
 const RESUME_FILES = ["resume.md", "resume.txt"];
 
 let pushed = 0;
 pushSourceUrls();
 pushProfile();
-console.log(pushed ? `\n✓ Pushed ${pushed} config item(s) to KV (${scopeLabel}).\n` : "\nNothing pushed.\n");
+const where = envName ? `${scopeLabel}, env=${envName}` : scopeLabel;
+console.log(pushed ? `\n✓ Pushed ${pushed} config item(s) to KV (${where}).\n` : "\nNothing pushed.\n");
 
 // ── source-urls.json → config:source-urls ───────────────────────────────────
 function pushSourceUrls() {
@@ -92,7 +99,7 @@ function pushProfile() {
 function kvPut(key, path) {
   const res = spawnSync(
     "npx",
-    ["wrangler", "kv", "key", "put", key, "--path", path, "--binding", "KV", ...scopeArgs],
+    ["wrangler", "kv", "key", "put", key, "--path", path, "--binding", "KV", ...envArgs, ...scopeArgs],
     { stdio: "inherit", shell: process.platform === "win32" },
   );
   if (res.status !== 0) {

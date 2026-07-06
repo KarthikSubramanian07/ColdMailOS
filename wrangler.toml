@@ -1,45 +1,85 @@
 # ────────────────────────────────────────────────────────────────────────────
-#  ResearchMailOS — Cloudflare Worker config
+#  ColdMailOS — Cloudflare Worker config
 #
-#  This file IS committed. It contains no secrets — only bindings and defaults.
-#  Secrets live in `wrangler secret` (see README). Per-user config (your list of
-#  URLs, your background) lives in KV, pushed with `npm run config:push`.
+#  One codebase, deployed once per use case via Wrangler environments:
+#     npm run deploy:research    (wrangler deploy --env research)
+#     npm run deploy:startups    (wrangler deploy --env startups)
+#
+#  Each environment has its own Worker name, KV namespace, Notion database, and
+#  secrets — but shares this code. Secrets are set per env:
+#     wrangler secret put NOTION_TOKEN --env research
+#     wrangler secret put NOTION_TOKEN --env startups
+#
+#  KV namespace ids below are not secrets. Create one per env with
+#  `wrangler kv namespace create KV` and paste the id in. (Forks: replace these.)
 # ────────────────────────────────────────────────────────────────────────────
 
-name = "researchmailos"
+name = "coldmailos"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-# Weekly scrape — Mondays at 06:00 UTC. Faculty pages barely change; combined
-# with content-hash caching this keeps LLM usage near zero. Tweak freely.
-[triggers]
-crons = ["0 6 * * 1"]
-
-# One KV namespace holds BOTH the per-user config (source URLs + your profile)
-# and the per-URL content hashes used to skip unchanged pages.
-#   Create it with:  wrangler kv namespace create KV
-#   then paste the returned id below.
-[[kv_namespaces]]
-binding = "KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
-
-# Non-secret tunables. Safe to commit.
+# ── Base config (used by `wrangler dev`) ─────────────────────────────────────
 [vars]
 GROQ_MODEL = "llama-3.3-70b-versatile"
 NOTION_VERSION = "2022-06-28"
-# Set to "true" to also fetch each person's linked profile page for a second
-# extraction pass (catches emails/research that only live on personal pages).
 ENABLE_PROFILE_SECOND_PASS = "false"
-# Safety cap so one run can never blow the Groq daily free-tier budget.
 MAX_PAGES_PER_RUN = "200"
-# Milliseconds to wait between LLM calls (Groq free tier is 30 req/min).
 LLM_THROTTLE_MS = "2200"
+MAX_SUBREQUESTS = "45"
 
-# ── Secrets to set (never committed) ────────────────────────────────────────
-#   wrangler secret put GROQ_API_KEY
-#   wrangler secret put NOTION_TOKEN
-#   wrangler secret put NOTION_DATABASE_ID
-#   wrangler secret put WEBHOOK_SECRET
-#   wrangler secret put GOOGLE_CLIENT_ID
-#   wrangler secret put GOOGLE_CLIENT_SECRET
-#   wrangler secret put GMAIL_REFRESH_TOKEN
+[[kv_namespaces]]
+binding = "KV"
+id = "bbbd6c16013a489795a92ba79b5edd22"
+
+[triggers]
+crons = ["0 6 * * 1"]
+
+# ── Research deployment (professors / labs) ──────────────────────────────────
+[env.research]
+name = "coldmailos-research"
+
+[env.research.vars]
+GROQ_MODEL = "llama-3.3-70b-versatile"
+NOTION_VERSION = "2022-06-28"
+ENABLE_PROFILE_SECOND_PASS = "false"
+MAX_PAGES_PER_RUN = "200"
+LLM_THROTTLE_MS = "2200"
+MAX_SUBREQUESTS = "45"
+
+[[env.research.kv_namespaces]]
+binding = "KV"
+id = "bbbd6c16013a489795a92ba79b5edd22"
+
+[env.research.triggers]
+crons = ["0 6 * * 1"]
+
+# ── Startups deployment (founders / VC portfolios) ───────────────────────────
+[env.startups]
+name = "coldmailos-startups"
+
+[env.startups.vars]
+GROQ_MODEL = "llama-3.3-70b-versatile"
+NOTION_VERSION = "2022-06-28"
+# Startup portfolio pages rarely show emails — the fallback email hunt is always
+# on in startup mode (independent of this flag).
+ENABLE_PROFILE_SECOND_PASS = "false"
+MAX_PAGES_PER_RUN = "200"
+LLM_THROTTLE_MS = "2200"
+MAX_SUBREQUESTS = "45"
+
+[[env.startups.kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_STARTUPS_KV_NAMESPACE_ID"
+
+[env.startups.triggers]
+crons = ["0 6 * * 1"]
+
+# ── Secrets to set per env (never committed) ─────────────────────────────────
+#   wrangler secret put GROQ_API_KEY --env research
+#   wrangler secret put NOTION_TOKEN --env research
+#   wrangler secret put NOTION_DATABASE_ID --env research
+#   wrangler secret put WEBHOOK_SECRET --env research
+#   wrangler secret put GOOGLE_CLIENT_ID --env research
+#   wrangler secret put GOOGLE_CLIENT_SECRET --env research
+#   wrangler secret put GMAIL_REFRESH_TOKEN --env research
+#   (repeat with --env startups)

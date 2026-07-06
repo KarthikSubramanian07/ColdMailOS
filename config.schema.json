@@ -18,22 +18,31 @@
     },
     "privateConfig": {
       "title": "private-config.json",
-      "description": "Who you are and how you want to sound. Feeds the outreach drafting prompt. Secrets (API keys, tokens) do NOT go here — they are Cloudflare secrets.",
+      "description": "Who you are, how you want to sound, and which mode. Feeds the extraction + drafting prompts. Secrets (API keys, tokens) do NOT go here — they are Cloudflare secrets.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "background", "researchInterests"],
+      "required": ["mode", "name", "background", "interests"],
       "properties": {
+        "mode": {
+          "type": "string",
+          "description": "Selects extraction + drafting wording. \"research\" (professors/labs) or \"startup\" (founders/VCs). Free string so new modes are easy to add; defaults to research.",
+          "examples": ["research", "startup"]
+        },
         "name": {
           "type": "string",
           "description": "Your full name, as it should appear in the email."
         },
         "background": {
           "type": "string",
-          "description": "1–3 sentences on who you are: level (undergrad/grad/etc.), institution, relevant experience."
+          "description": "1–3 sentences on who you are. Frame it for the mode — research experience for research, builder/project experience for startup."
         },
-        "researchInterests": {
+        "interests": {
           "type": "string",
-          "description": "What you want to work on. Be specific — this is matched against each researcher's focus."
+          "description": "What you want: research topics to work on, or the kind of company/role you're after. Be specific — this is matched against each contact's context."
+        },
+        "opportunityType": {
+          "type": "string",
+          "description": "Startup mode: what you're seeking, e.g. \"internship or full-time\". Optional."
         },
         "resumeText": {
           "type": "string",
