@@ -21,13 +21,16 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const local = process.argv.includes("--local");
-const scope = local ? "--local" : "--remote";
+// Remote is the default target for `wrangler kv key put`; only pass a flag for
+// local. (Wrangler v3 has no `--remote` flag — remote is implicit.)
+const scopeArgs = local ? ["--local"] : [];
+const scopeLabel = local ? "local" : "remote";
 const RESUME_FILES = ["resume.md", "resume.txt"];
 
 let pushed = 0;
 pushSourceUrls();
 pushProfile();
-console.log(pushed ? `\n✓ Pushed ${pushed} config item(s) to KV (${scope.replace("--", "")}).\n` : "\nNothing pushed.\n");
+console.log(pushed ? `\n✓ Pushed ${pushed} config item(s) to KV (${scopeLabel}).\n` : "\nNothing pushed.\n");
 
 // ── source-urls.json → config:source-urls ───────────────────────────────────
 function pushSourceUrls() {
@@ -89,7 +92,7 @@ function pushProfile() {
 function kvPut(key, path) {
   const res = spawnSync(
     "npx",
-    ["wrangler", "kv", "key", "put", key, "--path", path, "--binding", "KV", scope],
+    ["wrangler", "kv", "key", "put", key, "--path", path, "--binding", "KV", ...scopeArgs],
     { stdio: "inherit", shell: process.platform === "win32" },
   );
   if (res.status !== 0) {
