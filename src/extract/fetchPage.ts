@@ -2,7 +2,7 @@ const USER_AGENT =
   "ResearchMailOS/0.1 (+https://github.com/researchmailos/researchmailos) — public directory reader";
 
 /** Max characters of page text handed to the LLM (keeps token usage bounded). */
-const MAX_TEXT_CHARS = 14_000;
+const MAX_TEXT_CHARS = 30_000;
 
 /** Fetch a URL and return readable plain text (boilerplate stripped). */
 export async function fetchPage(url: string): Promise<string> {

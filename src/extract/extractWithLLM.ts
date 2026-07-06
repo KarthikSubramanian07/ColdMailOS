@@ -30,23 +30,17 @@ interface GroqResponse {
 export async function extractPeople(env: Env, pageText: string, sourceUrl: string): Promise<Person[]> {
   if (!pageText.trim()) return [];
 
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: env.GROQ_MODEL,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `PAGE URL: ${sourceUrl}\n\nPAGE TEXT:\n${pageText}` },
-      ],
-    }),
+  const payload = JSON.stringify({
+    model: env.GROQ_MODEL,
+    temperature: 0,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: `PAGE URL: ${sourceUrl}\n\nPAGE TEXT:\n${pageText}` },
+    ],
   });
 
+  const res = await postGroqWithRetry(env, payload);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Groq extraction failed (${res.status}) for ${sourceUrl}: ${detail}`);
@@ -59,6 +53,30 @@ export async function extractPeople(env: Env, pageText: string, sourceUrl: strin
   const people = parsePeople(content);
 
   return people.map((p) => normalizePerson(p, sourceUrl));
+}
+
+/**
+ * POST to Groq, retrying on rate limits (429) and transient 5xx with backoff.
+ * Honors the Retry-After header when present. Returns the final Response.
+ */
+async function postGroqWithRetry(env: Env, payload: string, maxAttempts = 4): Promise<Response> {
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: payload,
+    });
+    if (res.status !== 429 && res.status < 500) return res;
+    if (attempt === maxAttempts - 1) return res;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 1000;
+    await new Promise((r) => setTimeout(r, waitMs + 300));
+  }
+  return res as Response;
 }
 
 function parsePeople(content: string): Partial<Person>[] {
