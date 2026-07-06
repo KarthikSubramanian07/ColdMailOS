@@ -1,10 +1,10 @@
-import type { Env, ProfileConfig } from "./types";
+import type { Env, Mode, ProfileConfig } from "./types";
 
 /**
  * Per-user config lives in KV, not in the repo. It is pushed once with
  * `npm run config:push` (see scripts/push-config.mjs). Keys:
  *   config:source-urls  → string[]      (your list of pages to scrape)
- *   config:profile      → ProfileConfig (your background / voice)
+ *   config:profile      → ProfileConfig (your mode + background / voice)
  */
 export const KV_KEYS = {
   sourceUrls: "config:source-urls",
@@ -32,11 +32,26 @@ export async function loadProfile(env: Env): Promise<ProfileConfig> {
     );
   }
   const parsed = JSON.parse(raw) as ProfileConfig;
-  if (!parsed.name || !parsed.background || !parsed.researchInterests) {
-    throw new Error("config:profile must include name, background, and researchInterests.");
+  if (!parsed.name || !parsed.background || !parsed.interests) {
+    throw new Error("config:profile must include name, background, and interests.");
   }
+  parsed.mode = normalizeMode(parsed.mode);
   return parsed;
 }
+
+/** Read just the mode for the scrape (extraction). Defaults to "research". */
+export async function loadMode(env: Env): Promise<Mode> {
+  const raw = await env.KV.get(KV_KEYS.profile);
+  if (!raw) return "research";
+  try {
+    return normalizeMode((JSON.parse(raw) as ProfileConfig).mode);
+  } catch {
+    return "research";
+  }
+}
+
+const normalizeMode = (m: unknown): Mode =>
+  typeof m === "string" && m.trim() ? (m.trim().toLowerCase() as Mode) : "research";
 
 /** Parse a "true"/"false" string var into a boolean. */
 export const boolVar = (v: string | undefined): boolean => v?.toLowerCase() === "true";

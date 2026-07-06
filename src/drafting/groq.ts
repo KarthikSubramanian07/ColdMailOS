@@ -1,45 +1,59 @@
-import type { DraftResult, Env, Person, ProfileConfig } from "../types";
+import type { Contact, DraftResult, Env, Mode, ProfileConfig } from "../types";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You write short, sincere research outreach emails on behalf of a person reaching out to an academic.
+const BANNED = `BANNED phrases: "I came across your profile", "I was impressed by your work", "I love what you're building", "I hope this email finds you well", "reach out", "align with", "passionate about", "delve", "in today's fast-paced".`;
+
+const RESEARCH_SYSTEM = `You write short, sincere research-outreach emails on behalf of a person contacting an academic.
 
 Hard rules:
-  - Reference the recipient's SPECIFIC research focus (given below). Never use generic praise or vague admiration.
+  - Reference the recipient's SPECIFIC work (given as "context"). Never use generic praise.
   - Under 200 words in the body. Every sentence earns its place.
-  - Ground the sender's fit in their actual background/interests. Do not invent accomplishments.
+  - Ground the sender's fit in their real background/interests. Do not invent accomplishments.
   - End with ONE clear, low-pressure ask (e.g. whether they're taking students, or a short chat).
   - Plain, human, specific. No corporate tone.
-  - BANNED phrases: "I came across your profile", "I was impressed by your work", "I hope this email finds you well", "reach out", "align with", "passionate about", "delve", "in today's fast-paced".
+  - ${BANNED}
   - If a signature is provided, end the body with it verbatim. Otherwise sign with the sender's name.
   - Return STRICT JSON: {"subject": "...", "body": "..."}. The body uses real newlines between paragraphs.`;
+
+const STARTUP_SYSTEM = `You write short, confident cold emails on behalf of a person contacting a startup founder about joining their team or exploring opportunities.
+
+Hard rules:
+  - Reference the company's SPECIFIC work (given as "context"). Never use generic flattery.
+  - Connect relevant, real background from the sender's profile to what the company does. Do not invent accomplishments.
+  - If the sender stated an opportunity type (internship / full-time), reflect it.
+  - If backing/affiliation is known (e.g. YC-backed), a brief nod is fine, but don't make it the focus.
+  - Under 150 words in the body. Confident, not fawning.
+  - End with ONE clear, low-pressure ask (e.g. "would love 15 minutes to learn more" or "happy to share my resume if there's a fit").
+  - ${BANNED}
+  - If a signature is provided, end the body with it verbatim. Otherwise sign with the sender's name.
+  - Return STRICT JSON: {"subject": "...", "body": "..."}. The body uses real newlines between paragraphs.`;
+
+function systemPrompt(mode: Mode): string {
+  return mode === "startup" ? STARTUP_SYSTEM : RESEARCH_SYSTEM;
+}
 
 interface GroqResponse {
   choices?: { message?: { content?: string } }[];
   error?: { message?: string };
 }
 
-/** Draft a personalized outreach email for one researcher. */
+/** Draft a personalized outreach email for one contact, per mode. */
 export async function draftEmail(
   env: Env,
-  person: Person,
+  contact: Contact,
   profile: ProfileConfig,
 ): Promise<DraftResult> {
-  const userPrompt = buildUserPrompt(person, profile);
-
   const res = await fetch(GROQ_URL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.GROQ_API_KEY}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${env.GROQ_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: env.GROQ_MODEL,
       temperature: 0.6,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
+        { role: "system", content: systemPrompt(profile.mode) },
+        { role: "user", content: buildUserPrompt(contact, profile) },
       ],
     }),
   });
@@ -52,23 +66,25 @@ export async function draftEmail(
   const data = (await res.json()) as GroqResponse;
   if (data.error) throw new Error(`Groq error: ${data.error.message}`);
 
-  const content = data.choices?.[0]?.message?.content ?? "{}";
-  return parseDraft(content, profile);
+  return parseDraft(data.choices?.[0]?.message?.content ?? "{}", profile);
 }
 
-function buildUserPrompt(person: Person, profile: ProfileConfig): string {
+function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
+  const recipientLabel = profile.mode === "startup" ? "FOUNDER / COMPANY" : "RECIPIENT";
   const lines = [
-    "── RECIPIENT ──",
-    `Name: ${person.name}`,
-    person.title ? `Title: ${person.title}` : null,
-    person.institution ? `Institution/Lab: ${person.institution}` : null,
-    `Research focus: ${person.research_focus ?? "(not stated — write generally but honestly, and keep it brief)"}`,
+    `── ${recipientLabel} ──`,
+    `Name: ${contact.contact_name}`,
+    contact.role ? `Role: ${contact.role}` : null,
+    contact.entity_name ? `Entity: ${contact.entity_name}` : null,
+    contact.backing_or_affiliation ? `Backing/affiliation: ${contact.backing_or_affiliation}` : null,
+    `Context: ${contact.context_summary ?? "(not stated — keep it brief and honest)"}`,
     "",
     "── SENDER (the person emailing) ──",
     `Name: ${profile.name}`,
     `Background: ${profile.background}`,
-    `Research interests: ${profile.researchInterests}`,
-    profile.resumeText ? `CV highlights: ${profile.resumeText}` : null,
+    `Interests / goals: ${profile.interests}`,
+    profile.opportunityType ? `Opportunity type: ${profile.opportunityType}` : null,
+    profile.resumeText ? `Resume/CV highlights: ${profile.resumeText}` : null,
     profile.tone ? `Voice/tone: ${profile.tone}` : null,
     profile.signature ? `Signature (use verbatim at the end):\n${profile.signature}` : null,
     "",
@@ -88,7 +104,7 @@ function parseDraft(content: string, profile: ProfileConfig): DraftResult {
   }
   // Last-resort fallback so the pipeline never hard-fails on a malformed draft.
   return {
-    subject: `Interest in your research`,
+    subject: "Interest in your work",
     body: `Hi,\n\nI'd love to learn more about your work.\n\nBest,\n${profile.name}`,
   };
 }

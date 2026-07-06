@@ -1,19 +1,26 @@
 /**
- * The Notion database property names ResearchMailOS reads and writes.
+ * The Notion database property names ColdMailOS reads and writes.
  *
  * These strings must EXACTLY match your database's column names. If you rename a
  * column in Notion, change it here too (and redeploy). The README's "Notion
  * dashboard" section walks through creating a database with these exact columns.
+ *
+ * Names are generalized so one schema serves both modes:
+ *   research  →  Contact = professor, Entity = lab/department
+ *   startup   →  Contact = founder,   Entity = company
  */
 export const PROPS = {
-  name: "Name", // title
-  institution: "Institution", // rich text
-  researchFocus: "Research Focus", // rich text
+  contactName: "Contact Name", // title
+  role: "Role", // rich text
+  entity: "Entity", // rich text
+  contextSummary: "Context Summary", // rich text
+  backing: "Backing/Affiliation", // rich text
   email: "Email", // email
   profileUrl: "Profile URL", // url
-  sourceUrl: "Source", // url  — the page we found them on
+  sourceUrl: "Source URL", // url
   status: "Status", // select
-  trigger: "Draft Email", // checkbox — flipping this ON fires the webhook
+  trigger: "Draft Email", // checkbox — flipping ON drafts an email (the webhook)
+  remove: "Remove", // checkbox — flipping ON archives (removes) the row
   draftSubject: "Draft Subject", // rich text
   draftBody: "Draft Body", // rich text
   gmailDraft: "Gmail Draft", // url

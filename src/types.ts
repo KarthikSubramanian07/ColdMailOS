@@ -1,4 +1,4 @@
-/** Shared types for ResearchMailOS. */
+/** Shared types for ColdMailOS. */
 
 /** Cloudflare Worker environment — bindings, secrets, and vars. */
 export interface Env {
@@ -20,25 +20,39 @@ export interface Env {
   ENABLE_PROFILE_SECOND_PASS: string;
   MAX_PAGES_PER_RUN: string;
   LLM_THROTTLE_MS: string;
+  /** Free-plan Workers allow 50 subrequests per invocation; stay under it. */
+  MAX_SUBREQUESTS: string;
 }
 
-/** One extracted researcher. Every field except `name` may be null/absent. */
-export interface Person {
-  name: string;
-  title: string | null;
+/** Outreach mode. Free string (not a strict enum) so new modes are trivial. */
+export type Mode = "research" | "startup" | (string & {});
+
+/**
+ * One extracted contact. Field names are generalized so they read naturally for
+ * either mode (see the mapping in the README). Everything except contact_name
+ * and entity_name may be null/absent.
+ */
+export interface Contact {
+  contact_name: string;
+  role: string | null;
+  entity_name: string | null;
   email: string | null;
-  research_focus: string | null;
+  context_summary: string | null;
+  backing_or_affiliation: string | null;
   profile_url: string | null;
-  /** Filled in by the pipeline, not the LLM. */
-  institution?: string | null;
   source_url?: string;
 }
 
 /** The user's private background — feeds the drafting prompt. */
 export interface ProfileConfig {
+  /** "research" | "startup" | … — selects extraction + drafting wording. */
+  mode: Mode;
   name: string;
   background: string;
-  researchInterests: string;
+  /** What you want: research topics, or the kind of company/role you're after. */
+  interests: string;
+  /** Startup mode: e.g. "internship or full-time". Optional. */
+  opportunityType?: string;
   resumeText?: string;
   tone?: string;
   signature?: string;
