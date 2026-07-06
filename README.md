@@ -82,7 +82,7 @@ Five free accounts, ~30–40 min for first-time setup:
 - [ ] **[Groq](https://console.groq.com)** — free, fast LLM inference. One API key.
 - [ ] **[Notion](https://notion.so)** — your dashboard + the checkboxes that trigger drafting/removal.
 - [ ] **[Google Cloud](https://console.cloud.google.com)** — a Gmail API OAuth client (draft-only).
-- [ ] **Node.js 18+** and **npm**.
+- [ ] **Node.js 22+** and **npm** (Wrangler v4 requires Node 22).
 
 ---
 
