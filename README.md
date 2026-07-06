@@ -1,12 +1,12 @@
 <div align="center">
 
-# 📬 ResearchMailOS
+# 📬 ColdMailOS
 
-### Turn any list of lab pages into a Notion board of researchers — then turn a checkbox into a personalized Gmail draft.
+### Point it at any list of pages — labs, VC portfolios, anywhere — and get a Notion board of contacts. Tick a box, get a personalized cold email drafted in Gmail.
 
-Point it at any school, any department, any field. It reads the pages, pulls out the people and what they work on, and drops them into a Notion database. When you tick a box next to someone, it writes a genuinely personal outreach email that references *their* research and *your* background — and leaves it sitting as a Gmail draft for you to review and send.
+It reads the pages, pulls out the people (and what they work on), and drops them into Notion. When you tick a box next to someone, it writes a genuinely personal outreach email that references *their* work and *your* background — and leaves it as a Gmail draft for you to review and send.
 
-**No servers. No monthly bill. No email ever sent without you hitting the button.**
+**One codebase, two modes: reaching researchers or reaching startup founders. No servers. No monthly bill. No email ever sent without you hitting the button.**
 
 <br>
 
@@ -23,450 +23,342 @@ Point it at any school, any department, any field. It reads the pages, pulls out
 
 ## The 30-second pitch
 
-You're cold-emailing researchers — for a PhD spot, an internship, a UROP, a collaboration. The tedious parts are (1) finding who works on what, and (2) writing each email so it doesn't read like a mail-merge. ResearchMailOS does the finding automatically and drafts the emails for you, so all that's left is the part only you can do: reading it, tweaking a line, and hitting send.
+You're cold-emailing people — professors for a PhD/UROP, or founders for an internship/role. The tedious parts are (1) finding who works on what, and (2) writing each email so it doesn't read like a mail-merge. ColdMailOS does the finding automatically and drafts the emails for you, so all that's left is the part only you can do: reading it, tweaking a line, and hitting send.
 
 ```
 ┌─────────────┐   weekly cron    ┌──────────────┐   you tick ☑   ┌───────────────┐
 │ Your list   │ ───────────────▶ │    Notion     │ ─────────────▶ │  Gmail draft   │
 │ of URLs     │  fetch + extract │   dashboard   │  webhook fires │  (never sent)  │
-│ (any pages) │   with an LLM    │ people + focus│  drafts email  │  ready to send │
+│ (any pages) │   with an LLM    │contacts+context│  drafts email  │  ready to send │
 └─────────────┘                  └──────────────┘                └───────────────┘
 ```
 
-1. **Extract** — a Cloudflare Worker fetches each page you list, strips it to text, and asks an LLM to pull out every researcher's *name, role, email (only if it's actually on the page), research focus, and profile link*.
-2. **Sync** — new people are de-duplicated and pushed into a Notion database you can browse, filter, and triage like a CRM.
-3. **Draft** — tick the **Draft Email** checkbox on anyone, and a webhook writes a short, specific outreach email using your background + their research, then creates a Gmail draft with their address pre-filled.
+1. **Extract** — a Cloudflare Worker fetches each page you list, strips it to text, and asks an LLM to pull out every contact: *name, role, entity, email (only if actually shown), what they work on, and a profile link*.
+2. **Sync** — new contacts are de-duplicated and pushed into a Notion database you browse and triage like a CRM.
+3. **Draft** — tick **Draft Email** on anyone, and a webhook writes a short, specific outreach email using your background + their work, then creates a Gmail draft with their address pre-filled.
 4. **Send** — you review the draft in Gmail and send it yourself. Always. The tool literally cannot send mail (see [Design principles](#-design-principles-the-non-negotiables)).
+
+Not interested in someone? Tick **Remove** and the row archives itself.
 
 ---
 
-## Why you might like it
+## 🎭 Two modes, one codebase
 
-- 🎓 **Works for any school, any field.** There is *zero* hardcoded university, department, or lab anywhere in this repo. You bring a list of URLs; it figures out the rest. PL theory at CMU, wet-lab bio at a small liberal-arts college, an indie research group's `/people` page — all the same to it.
-- 🧠 **LLM extraction, not brittle scrapers.** Every faculty page has a different HTML layout. Instead of one parser per site, it reads the page like a person would. Add a new URL and it just works.
-- 💸 **Genuinely free to run.** Cloudflare Workers (compute + cron + storage) and Groq (LLM) both have free tiers this comfortably fits inside. Notion and Gmail are free. Your bill is $0.
-- ✍️ **Emails that don't sound like a template.** Personalized on *both* sides: the draft references the *specific* thing the person researches **and** *your* real background — your interests, experience, and (optionally) your whole resume/CV — with a banned-clichés list so you never send "I came across your profile and was impressed."
-- 🔒 **Honest by construction.** It never invents an email address, and it can never send mail on your behalf. More on that below.
-- 🧩 **Open source, self-hosted, yours.** Fork it, read every line, run it on your own infra with your own keys. Your background, your target list, and your drafts never touch anyone else's servers.
+ColdMailOS runs in a `mode` you set in your config — no code fork. The same extraction and drafting pipeline just uses mode-appropriate wording. Deploy it twice (once per mode) and each deployment has its own target list, Notion database, and voice.
+
+| Generalized field | `research` mode means… | `startup` mode means… |
+|---|---|---|
+| **Contact Name** | Professor / researcher | Founder |
+| **Role** | "Associate Professor" | "Co-founder & CEO" |
+| **Entity** | Lab / department / institution | Company / startup |
+| **Context Summary** | Their research focus | What the company does |
+| **Backing/Affiliation** | Center/group (e.g. "BAIR") | Investor/accelerator (e.g. "YC W26", "a16z-backed") |
+| **Profile URL** | Faculty page | Company site / founder LinkedIn |
+
+**Startup mode also adds an email fallback:** VC portfolio pages rarely show an email, so when one isn't on the listing, ColdMailOS follows the company's website link and checks its `/contact` and `/careers` pages for a *visible* address. If it still can't find one, it leaves the field blank — never a guessed `founder@company.com`.
 
 ---
 
 ## 🧭 Design principles (the non-negotiables)
 
-These are baked into the code, not just the docs:
+Baked into the code, not just the docs — and true in **both** modes:
 
 | Principle | How it's enforced |
 |---|---|
-| **Never fabricate an email.** | The extraction prompt forbids guessing, and a regex guard drops anything that isn't a real address found on the page. No email on the page → the field stays blank and you fill it in. |
+| **Never fabricate an email.** | The extraction prompt forbids guessing, and a regex guard drops anything that isn't a real address found on the page. No email visible → the field stays blank and you fill it in. |
 | **Never send mail automatically.** | The Gmail OAuth scope is `gmail.compose` — **draft-only**. There is no code path, and no *permission*, to send. You always press send. |
-| **No hardcoded institutions.** | The public repo ships only generic examples. Your real target list and background live in gitignored files, pushed to your private Cloudflare KV. |
-| **Respect the open web.** | It reads public directory pages with an honest User-Agent. Only point it at pages you're allowed to read; mind each site's `robots.txt` and terms. |
+| **No hardcoded targets.** | The public repo ships only generic examples. Your real target lists and background live in gitignored files, pushed to your private Cloudflare KV. |
+| **Respect the open web.** | It reads public pages with an honest User-Agent. Only point it at pages you're allowed to read; mind each site's `robots.txt` and terms. |
 
 ---
 
 ## ✅ What you'll need
 
-Five free accounts and about 30–40 minutes for first-time setup. Grab these tabs:
+Five free accounts, ~30–40 min for first-time setup:
 
 - [ ] **[Cloudflare](https://dash.cloudflare.com/sign-up)** — hosts the Worker, cron, and KV storage.
 - [ ] **[Groq](https://console.groq.com)** — free, fast LLM inference. One API key.
-- [ ] **[Notion](https://notion.so)** — your dashboard + the checkbox that triggers drafting.
-- [ ] **[Google Cloud](https://console.cloud.google.com)** — for a Gmail API OAuth client (draft-only).
-- [ ] **Node.js 18+** and **npm** installed locally.
-
-> **New to all this?** That's fine. Every step below is copy-pasteable, and the order matters less than you'd think — the only hard dependency is that you deploy the Worker *before* you point Notion's webhook at it.
+- [ ] **[Notion](https://notion.so)** — your dashboard + the checkboxes that trigger drafting/removal.
+- [ ] **[Google Cloud](https://console.cloud.google.com)** — a Gmail API OAuth client (draft-only).
+- [ ] **Node.js 18+** and **npm**.
 
 ---
 
-## ⚡ Quickstart (for the impatient)
-
-Already fluent in Cloudflare + Notion + Google Cloud? Here's the whole thing:
+## ⚡ Quickstart (clone once, deploy per mode)
 
 ```bash
-git clone https://github.com/YOU/researchmailos.git && cd researchmailos
+git clone https://github.com/YOU/coldmailos.git && cd coldmailos
 npm install
 npx wrangler login
-npx wrangler kv namespace create KV        # paste the id into wrangler.toml
+npx wrangler kv namespace create KV        # paste the id into wrangler.toml (per env)
 
-cp source-urls.example.json source-urls.json      # add your pages
-cp private-config.example.json private-config.json # add your background
-cp .env.example .env                               # add Google client id/secret
+cp source-urls.example.research.json source-urls.json   # your pages
+cp private-config.example.json private-config.json        # set "mode" + your background
+cp .env.example .env                                      # Google client id/secret
 
-# set the 7 secrets (see the table below)
-npx wrangler secret put GROQ_API_KEY
-# … NOTION_TOKEN, NOTION_DATABASE_ID, WEBHOOK_SECRET,
-#    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GMAIL_REFRESH_TOKEN
+# set the 7 secrets for the environment you're deploying (see the table below)
+npx wrangler secret put GROQ_API_KEY --env research
+# … NOTION_TOKEN, NOTION_DATABASE_ID, WEBHOOK_SECRET, GOOGLE_CLIENT_ID,
+#    GOOGLE_CLIENT_SECRET, GMAIL_REFRESH_TOKEN  (all --env research)
 
-npm run gmail:auth        # one-time OAuth → prints GMAIL_REFRESH_TOKEN
-npm run config:push       # source-urls.json + private-config.json → KV
-npm run deploy            # ship the Worker
+npm run gmail:auth                  # one-time OAuth → prints GMAIL_REFRESH_TOKEN
+npm run config:push -- --env research   # source-urls.json + private-config.json → KV
+npm run deploy:research             # ship it
 ```
 
-Then build the [Notion dashboard](#-the-notion-dashboard-design-that-doesnt-fight-you), add the automation webhook pointing at `https://<your-worker>.workers.dev/webhook/notion?secret=<WEBHOOK_SECRET>`, and you're live.
-
-Everyone else — the full walkthrough is below. 👇
+Then build the [Notion dashboard](#-the-notion-dashboard), add the automations pointing at `https://coldmailos-research.<you>.workers.dev/webhook/notion?secret=<WEBHOOK_SECRET>`, and you're live. Repeat with `--env startups` for the second deployment.
 
 ---
 
 ## 🛠️ Full setup
 
 ### Step 1 — Clone and install
-
 ```bash
-git clone https://github.com/YOU/researchmailos.git
-cd researchmailos
+git clone https://github.com/YOU/coldmailos.git
+cd coldmailos
 npm install
 ```
 
 ### Step 2 — Cloudflare (Worker + KV)
-
-1. Log in with Wrangler (Cloudflare's CLI, installed by `npm install`):
-   ```bash
-   npx wrangler login
-   ```
-2. Create the KV namespace that stores your config and page-content hashes:
-   ```bash
-   npx wrangler kv namespace create KV
-   ```
-   It prints something like `id = "abc123…"`. Open **`wrangler.toml`** and paste that id in:
-   ```toml
-   [[kv_namespaces]]
-   binding = "KV"
-   id = "abc123…"   # ← your id here
-   ```
+```bash
+npx wrangler login
+npx wrangler kv namespace create KV
+```
+Paste the printed `id` into **`wrangler.toml`** under the environment you're setting up (`[env.research]` and/or `[env.startups]` → `kv_namespaces`). Each deployment needs its own namespace.
 
 ### Step 3 — Groq API key
+[console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key**. Set it in Step 7. Default model is `llama-3.3-70b-versatile` (change in `wrangler.toml` → `[vars]`).
 
-1. Sign in at [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key**.
-2. Copy it. You'll set it as a secret in Step 7.
+### Step 4 — Notion (database, integration)
+Build the database first — jump to [The Notion dashboard](#-the-notion-dashboard) for the exact columns, then:
+1. **Create an integration** at [notion.so/my-integrations](https://www.notion.so/my-integrations) → **New integration** (type: **Internal**) → copy the **Internal Integration Secret** (`ntn_…`). This is your `NOTION_TOKEN`. *(Use the token, not OAuth — OAuth is only for public multi-tenant apps.)*
+2. **Share the database with it:** open the DB → **•••** → **Connections** → add your integration.
+3. **Get the database ID:** from the DB URL, copy the 32-char hex before `?v=`. This is your `NOTION_DATABASE_ID`.
 
-> The default model is `llama-3.3-70b-versatile` (set in `wrangler.toml` → `[vars]`). Swap it for any Groq-hosted model you prefer.
-
-### Step 4 — Notion (database, integration, webhook)
-
-This is the heart of the UI. First **build the dashboard** — jump to [The Notion dashboard](#-the-notion-dashboard-design-that-doesnt-fight-you) for the exact columns, colors, and views, then come back here. Once your database exists:
-
-1. **Create an integration.** Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) → **New integration** → give it a name (e.g. "ResearchMailOS") → copy the **Internal Integration Secret** (starts with `ntn_`). This is your `NOTION_TOKEN`.
-2. **Share the database with it.** Open your database → **•••** menu → **Connections** → add your integration. (Without this, the API returns 404s.)
-3. **Get the database ID.** Open the database as a full page. The URL looks like:
-   ```
-   https://www.notion.so/yourworkspace/8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d?v=…
-                                        └──────────── this is the ID ────────────┘
-   ```
-   Copy the 32-character hex string (the part before `?v=`). This is your `NOTION_DATABASE_ID`.
-4. **The automation webhook comes last** — you need your deployed Worker URL first (Step 10).
+Two deployments = two databases (same schema). Repeat for each.
 
 ### Step 5 — Gmail (draft-only OAuth)
-
-1. In [Google Cloud Console](https://console.cloud.google.com): create a project (or pick one) → **APIs & Services** → **Enable APIs** → enable the **Gmail API**.
-2. **APIs & Services → OAuth consent screen**: choose **External**, fill in the basics, and add your own Google account as a **Test user** (so you don't need Google verification).
-3. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
-   - Application type: **Web application**
-   - **Authorized redirect URI**: `http://localhost:5173/oauth2callback`
-   - Create, then copy the **Client ID** and **Client secret**.
-4. Put those two in your local `.env`:
+1. [Google Cloud Console](https://console.cloud.google.com) → new project → enable **Gmail API**.
+2. **OAuth consent screen** → **External** → add your Google account as a **Test user**.
+3. **Credentials → Create → OAuth client ID → Web application** → **Authorized redirect URI** `http://localhost:5173/oauth2callback` → copy **Client ID** + **Client secret**.
+4. Put those in `.env`, then run:
    ```bash
-   cp .env.example .env
-   # edit .env → GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+   cp .env.example .env    # fill GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+   npm run gmail:auth      # opens browser → prints GMAIL_REFRESH_TOKEN
    ```
-5. Run the one-time flow — it opens your browser, you approve, and it prints a refresh token:
-   ```bash
-   npm run gmail:auth
-   ```
-   > The consent screen will say the app wants to *"Manage drafts and send emails"* — that's the closest bundled description Google shows, but the scope requested is `gmail.compose`, which **cannot send**. You can verify this in `scripts/get-gmail-token.mjs`.
+   > The consent screen says "Manage drafts and send emails" — that's Google's bundled label, but the scope requested is `gmail.compose`, which **cannot send**. Verify in `scripts/get-gmail-token.mjs`.
 
-   Copy the printed refresh token — that's your `GMAIL_REFRESH_TOKEN`.
+### Step 6 — Your config files
 
-### Step 6 — Fill in your two config files
-
-These are **gitignored** — they never get committed. They're your private target list and background.
+Gitignored — never committed.
 
 ```bash
-cp source-urls.example.json source-urls.json
+cp source-urls.example.research.json source-urls.json    # or .startup.json
 cp private-config.example.json private-config.json
 ```
 
-**`source-urls.json`** — a flat list of pages to read. Department pages, lab `/people` pages, faculty directories — mix freely:
+**`source-urls.json`** — a flat list of pages to read (any mix):
 ```json
-[
-  "https://www.cs.someuniversity.edu/people/faculty",
-  "https://somelab.someuniversity.edu/team",
-  "https://www.someuniversity.edu/department/research-areas"
-]
+["https://www.cs.someuniv.edu/people/faculty", "https://somelab.someuniv.edu/team"]
 ```
 
-**`private-config.json`** — who you are and how you want to sound (see [`config.schema.json`](config.schema.json) for the full field reference):
+**`private-config.json`** — who you are, how you sound, and the mode (see [`config.schema.json`](config.schema.json)):
 ```json
 {
+  "mode": "research",
   "name": "Your Name",
-  "background": "Second-year CS undergrad at X. Built a compiler over the summer; TA'd systems.",
-  "researchInterests": "Programming languages and verification — making dependent types usable.",
-  "resumeText": "Optional CV highlights the model can cite concretely.",
-  "tone": "Warm but concise. Specific, low-pressure. No buzzwords, no flattery.",
+  "background": "Second-year CS undergrad at X. Built a compiler; TA'd systems.",
+  "interests": "Programming languages and verification — making dependent types usable.",
+  "opportunityType": "internship or full-time",
+  "tone": "Warm but concise. Specific, low-pressure. No buzzwords.",
   "signature": "Your Name\nB.S. CS, X University\nyou@x.edu",
   "senderEmail": "you@x.edu"
 }
 ```
+`mode` is `"research"` or `"startup"` — it switches the extraction and drafting wording. Frame `background`/`interests` for the mode (research experience for research; builder/project experience for startup).
 
-**Optional but recommended — drop in your resume/CV.** Every email is personalized on *both* sides: the recipient's research **and** your background. For the richest, most specific drafts, add your full resume as a gitignored file:
+**Optional — your resume/CV:** `cp resume.example.md resume.md` and paste your real resume. `config:push` folds it into your profile automatically for richer, more specific drafts. It's gitignored (`resume.md`/`.txt`/`.pdf`) and only pushed to *your* KV.
 
+### Step 7 — Set your secrets (per environment)
 ```bash
-cp resume.example.md resume.md    # then paste your real resume (plain text/markdown)
+npx wrangler secret put GROQ_API_KEY --env research
+npx wrangler secret put NOTION_TOKEN --env research
+npx wrangler secret put NOTION_DATABASE_ID --env research
+npx wrangler secret put WEBHOOK_SECRET --env research      # invent one: openssl rand -hex 24
+npx wrangler secret put GOOGLE_CLIENT_ID --env research
+npx wrangler secret put GOOGLE_CLIENT_SECRET --env research
+npx wrangler secret put GMAIL_REFRESH_TOKEN --env research
 ```
-
-`npm run config:push` folds `resume.md` (or `resume.txt`) into your profile automatically, so the model can cite concrete, real details about you. It stays private — `resume.md`/`resume.txt`/`resume.pdf` are gitignored and only pushed to *your* Cloudflare KV, never committed. (PDFs aren't parsed — export to text/markdown.) Short on time? The `resumeText` field in `private-config.json` works too, for a few highlights.
-
-### Step 7 — Set your secrets
-
-Secrets never live in files that get committed. Set all seven:
-
-```bash
-npx wrangler secret put GROQ_API_KEY          # from Step 3
-npx wrangler secret put NOTION_TOKEN          # from Step 4.1
-npx wrangler secret put NOTION_DATABASE_ID    # from Step 4.3
-npx wrangler secret put WEBHOOK_SECRET        # any long random string you invent
-npx wrangler secret put GOOGLE_CLIENT_ID      # from Step 5.3
-npx wrangler secret put GOOGLE_CLIENT_SECRET  # from Step 5.3
-npx wrangler secret put GMAIL_REFRESH_TOKEN   # from Step 5.5
-```
-
-> **`WEBHOOK_SECRET`** is a password you make up. It's the only thing guarding your webhook endpoint, so make it long and random (e.g. `openssl rand -hex 24`). You'll append it to the webhook URL in Step 10.
-
-For local development (`npm run dev`) instead of production, put the same values in a `.dev.vars` file (`cp .dev.vars.example .dev.vars`).
+Repeat with `--env startups` for the second deployment. (Notion/Groq/Gmail secrets *can* be identical across envs if it's the same accounts — they're just settable per env for flexibility.)
 
 ### Step 8 — Push your config to KV
-
-Your URLs and background go into KV so the deployed Worker can read them:
-
 ```bash
-npm run config:push
+npm run config:push -- --env research    # (or --env startups)
 ```
-
-Re-run this any time you edit `source-urls.json` or `private-config.json`.
+Re-run after editing `source-urls.json` / `private-config.json` / `resume.md`.
 
 ### Step 9 — Deploy
-
 ```bash
-npm run deploy
+npm run deploy:research      # → https://coldmailos-research.<you>.workers.dev
 ```
-
-Wrangler prints your Worker's URL, e.g. `https://researchmailos.yourname.workers.dev`. Test it:
-
+Test it, then kick off the first scrape (don't wait for the weekly cron):
 ```bash
-curl https://researchmailos.yourname.workers.dev/health   # → ok
+curl https://coldmailos-research.<you>.workers.dev/health   # → ok
+curl -X POST "https://coldmailos-research.<you>.workers.dev/scrape?secret=YOUR_WEBHOOK_SECRET"
 ```
+The scrape returns a JSON report. On large directories it writes in batches to stay within the free-tier limit and reports `stoppedEarly: true` — just run it again to continue; it resumes where it left off.
 
-Kick off the first scrape manually (don't wait for the weekly cron):
+### Step 10 — Wire the Notion automations
+In your database: **•••** → **Automations** → **New automation**. Create **two**:
 
-```bash
-curl -X POST "https://researchmailos.yourname.workers.dev/scrape?secret=YOUR_WEBHOOK_SECRET"
-```
+1. **Draft:** Trigger *"Draft Email" is checked* → Action **Send webhook** → URL:
+   `https://coldmailos-research.<you>.workers.dev/webhook/notion?secret=YOUR_WEBHOOK_SECRET`
+2. **Remove:** Trigger *"Remove" is checked* → Action **Send webhook** → **same URL**.
 
-Watch it work in real time with `npm run tail`. Within a minute or two, rows should start appearing in Notion. 🎉
+The worker tells them apart: **Remove** archives the row; **Draft Email** drafts the email + creates the Gmail draft.
 
-### Step 10 — Wire up the Notion checkbox → webhook
-
-Now connect the trigger:
-
-1. In your Notion database, click **•••** (top-right) → **Automations** → **New automation**.
-2. **Trigger:** *"Draft Email" is checked* (the checkbox property, set to ✓).
-3. **Action:** **Send webhook**.
-4. **URL:**
-   ```
-   https://researchmailos.yourname.workers.dev/webhook/notion?secret=YOUR_WEBHOOK_SECRET
-   ```
-5. Save.
-
-That's it. Tick **Draft Email** on any row and, within a few seconds, the **Draft Subject / Draft Body** fill in and a **Gmail Draft** link appears. Click it, review, send.
-
-> **Why the secret in the URL?** Cloudflare Access login walls don't work for server-to-server webhooks, so the endpoint verifies the `WEBHOOK_SECRET` you set. Keep the URL private.
+> **Why the secret in the URL?** Server-to-server webhooks can't use a login wall, so the endpoint verifies your `WEBHOOK_SECRET`. Keep the URL private.
 
 ---
 
-## 🎨 The Notion dashboard — design that doesn't fight you
+## 🎨 The Notion dashboard
 
-The whole point is that triage should feel good. Here's a layout that turns a wall of names into a clean pipeline. Create a new **Database — Table** and set it up like this.
+Create a **Database — Table** with these columns (names are matched by the code — see [`src/notion/schema.ts`](src/notion/schema.ts)). Order them left-to-right like this for a clean triage flow:
 
-### Properties (columns)
+| # | Property | Type | Holds |
+|---|---|---|---|
+| 1 | **Contact Name** | Title | Person's name |
+| 2 | **Context Summary** | Text | What they work on (the decision info) |
+| 3 | **Entity** | Text | Lab / company |
+| 4 | **Role** | Text | Title |
+| 5 | **Backing/Affiliation** | Text | Center, or investor/accelerator |
+| 6 | **Email** | Email | Only if public — else blank |
+| 7 | **Status** | Select | Pipeline stage (options below) |
+| 8 | **Draft Email** | Checkbox | **Tick → generate a draft** |
+| 9 | **Remove** | Checkbox | **Tick → archive the row** |
+| 10 | **Gmail Draft** | URL | Deep-link into the draft |
+| 11 | **Profile URL** | URL | Their page |
+| 12 | **Source URL** | URL | Where we found them |
+| 13 | **Draft Subject** | Text | Written back by the tool |
+| 14 | **Draft Body** | Text | Written back by the tool |
 
-Create these **exactly** (names are matched by the code — see [`src/notion/schema.ts`](src/notion/schema.ts)):
+**Status options + colors:** `Not Contacted` (⚪️ gray) · `Emailed` (🔵 blue) · `Replied` (🟢 green) · `No Response` (🟡 yellow).
 
-| Property | Type | What it holds |
-|---|---|---|
-| **Name** | Title | The researcher's name |
-| **Institution** | Text | Lab / department / school |
-| **Research Focus** | Text | 1–2 sentences, straight from their page |
-| **Email** | Email | Only if it was public — otherwise blank, you fill it |
-| **Profile URL** | URL | Their personal/profile page |
-| **Source** | URL | The page we found them on |
-| **Status** | Select | Pipeline stage (options below) |
-| **Draft Email** | Checkbox | **Tick this to generate a draft** ← the trigger |
-| **Draft Subject** | Text | Written back by the tool |
-| **Draft Body** | Text | Written back by the tool |
-| **Gmail Draft** | URL | Deep-link into the Gmail draft |
+### Make it pretty (60 seconds, one-time)
 
-### Status options + colors
+Notion's API can create the columns but **can't** set view formatting — column widths, text wrapping, hidden columns, or Board/filtered views. Those are quick manual touches:
 
-Give **Status** these four options. Consistent colors make the board readable at a glance:
-
-| Option | Color | Meaning |
-|---|---|---|
-| `Not Contacted` | ⚪️ Gray | Fresh from the scrape |
-| `Emailed` | 🔵 Blue | You sent the draft |
-| `Replied` | 🟢 Green | They wrote back |
-| `No Response` | 🟡 Yellow | Follow up or let go |
-
-### Recommended views
-
-Add these views to the same database (top-left view switcher → **+**). Each is just a filter/group on the same rows:
-
-**1. 🎯 To Draft** — *Table*, your daily workspace. Filter: `Draft Email` is unchecked **and** `Status` is `Not Contacted`. Sort by `Institution`. This is the list you skim, deciding who's worth reaching out to. Tick the box on the winners.
-
-**2. 📮 Ready to Send** — *Table*. Filter: `Gmail Draft` is not empty **and** `Status` is `Not Contacted`. These have drafts waiting in Gmail. Open each link, read, send, then set Status → `Emailed`.
-
-**3. 🗂️ Pipeline** — *Board*, grouped by `Status`. Your CRM view — drag cards between columns as things progress:
+- **Wrap** the `Context Summary` column (column header → **Wrap column**) so you can read it.
+- **Hide** `Draft Subject`, `Draft Body`, `Source URL` in your main table (they're still there when you open a row).
+- **Reorder** columns by dragging if they didn't land in the order above.
+- Add a **Board** view grouped by `Status` for a CRM feel, and a filtered **🎯 To Draft** view (`Draft Email` unchecked & `Status` = Not Contacted).
 
 ```
 ┌ Not Contacted ─┐  ┌ Emailed ───────┐  ┌ Replied ───────┐  ┌ No Response ───┐
-│ ▢ Dr. A. Rivera │  │ ▣ Prof. K. Sato │  │ ▣ Dr. M. Osei   │  │ ▣ Prof. L. Berg │
+│ ▢ A. Rivera     │  │ ▣ K. Sato       │  │ ▣ M. Osei       │  │ ▣ L. Berg       │
 │   Vision · MIT  │  │   NLP · CMU     │  │   Systems · UW  │  │   HCI · GT      │
-│                 │  │                 │  │  ↳ reply! 🎉    │  │  ↳ follow up?   │
-│ ▢ Dr. J. Park   │  │ ▣ Dr. S. Iyer   │  │                 │  │                 │
-│   RL · Stanford │  │   Theory · UCB  │  │                 │  │                 │
 └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
-
-**4. 🖼️ Gallery** *(optional, nice for browsing)* — *Gallery* view with `Research Focus` shown on the card. Turns cold-emailing into something closer to reading a feed of interesting people.
-
-### A few Notion polish tips
-
-- **Hide the write-back columns** (`Draft Subject`, `Draft Body`, `Source`) in your main views to reduce clutter — open a row to see them. Keep them visible only where you're reviewing drafts.
-- **Wrap text** on `Research Focus` (column header → **Wrap column**) so you can actually read it in Table view.
-- **Icon + cover**: give the database a 📬 icon and a cover so it feels like a product, not a spreadsheet.
-- **Template button**: if you add people manually sometimes, a Notion template row with `Status = Not Contacted` pre-set saves clicks.
 
 ---
 
 ## 🔁 The daily loop
 
-Once it's running, your rhythm is:
-
-1. **Weekly** (automatic): the cron scrapes your URLs and adds any new people. Unchanged pages are skipped via content hashing, so it barely uses the LLM.
-2. **Whenever you're outreaching**: open **🎯 To Draft**, skim research focuses, and tick **Draft Email** on the people you like.
-3. Seconds later, open **📮 Ready to Send**, click each **Gmail Draft** link, read the email, fix anything, and hit send.
-4. Set **Status → Emailed**. Drag cards across the **🗂️ Pipeline** board as replies come in.
-
-That's the whole product. The boring 80% is automated; the 20% that's actually you stays with you.
+1. **Weekly** (automatic): the cron scrapes your URLs, de-dupes, and adds new contacts. Unchanged pages are skipped via content hashing, so it barely touches the LLM.
+2. Open your **🎯 To Draft** view, skim, and tick **Draft Email** on people you like (or **Remove** on ones you don't).
+3. Open each **Gmail Draft** link, read, fix anything, send. Set **Status → Emailed**.
 
 ---
 
 ## ⚙️ Configuration reference
 
-### Worker vars (`wrangler.toml` → `[vars]`)
+**Vars** (`wrangler.toml` → `[vars]` / per env):
 
-| Var | Default | What it does |
+| Var | Default | Purpose |
 |---|---|---|
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model for extraction + drafting |
-| `NOTION_VERSION` | `2022-06-28` | Notion API version header |
-| `ENABLE_PROFILE_SECOND_PASS` | `false` | Also fetch each person's linked profile page for a deeper extraction (catches emails/research that only live on personal pages). Uses more LLM calls. |
-| `MAX_PAGES_PER_RUN` | `200` | Hard cap on pages per scrape (budget safety) |
-| `LLM_THROTTLE_MS` | `2200` | Delay between LLM calls (stays under Groq's 30 req/min) |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model |
+| `NOTION_VERSION` | `2022-06-28` | Notion API version |
+| `ENABLE_PROFILE_SECOND_PASS` | `false` | Research mode: also hunt emails on linked profile pages |
+| `MAX_PAGES_PER_RUN` | `200` | Cap pages per scrape |
+| `LLM_THROTTLE_MS` | `2200` | Delay between LLM calls (Groq 30 req/min) |
+| `MAX_SUBREQUESTS` | `45` | Stay under the free-plan 50-subrequest/invocation cap |
 
-### Config files (gitignored, pushed to KV)
+**Config files** (gitignored, pushed to KV): `source-urls.json` → `config:source-urls`; `private-config.json` (+ `resume.md`) → `config:profile`.
 
-| File | KV key | Shape |
-|---|---|---|
-| `source-urls.json` | `config:source-urls` | Array of URLs |
-| `private-config.json` | `config:profile` | Your background — see [`config.schema.json`](config.schema.json) |
-
-### Endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/webhook/notion?secret=…` | Notion automation target (draft an email) |
-| `POST` | `/scrape?secret=…` | Manually trigger a scrape |
-| `GET` | `/health` | Health check |
-| `GET` | `/` | Info page |
+**Endpoints:** `POST /webhook/notion?secret=` (draft/remove) · `POST /scrape?secret=` (manual scrape) · `GET /health` · `GET /`.
 
 ---
 
-## 💰 Cost & rate limits
+## 💰 Cost & limits
 
-Designed to live entirely in free tiers:
+Lives entirely in free tiers: Cloudflare Workers (100k req/day), KV (100k reads/day), Groq (~30 req/min, ~1k req/day on Llama 3.3 70B), Notion, Gmail.
 
-- **Cloudflare Workers**: 100k requests/day free. A weekly cron + occasional webhooks is a rounding error.
-- **Cloudflare KV**: 100k reads + 1k writes/day free. Way more than enough.
-- **Groq**: free tier is ~30 requests/min and ~1k requests/day on Llama 3.3 70B. A weekly scrape of a few hundred pages fits easily — and **content-hash caching means unchanged pages don't call the LLM at all**, so week two onward is nearly free.
-- **Notion & Gmail**: free.
-
-The `LLM_THROTTLE_MS` and `MAX_PAGES_PER_RUN` knobs exist so a single run can never blow the daily budget.
+**Free-plan subrequest cap:** Cloudflare allows 50 subrequests per invocation, and each Notion row write is one. ColdMailOS writes incrementally and only marks a page "done" once fully synced, so a big directory just takes a few `/scrape` runs to fully populate (each resumes where the last stopped). Content-hash caching means week-two onward is nearly free.
 
 ---
 
 ## 🔐 Privacy, ethics & safety
 
-- **Your data stays yours.** Your background, target list, and drafts live in *your* Cloudflare account and *your* Notion. This project has no shared backend.
-- **It won't invent emails.** If a page doesn't publicly show an address, the field is blank. No pattern-guessing, no spray-and-pray.
-- **It can't send email.** `gmail.compose` scope = drafts only. Sending is a human action, every time.
-- **Read only what you're allowed to.** This is for public faculty/lab directories. Respect `robots.txt`, site terms, and don't point it at anything gated. Be a good citizen of the web and of people's inboxes — thoughtful, specific outreach only.
+- **Your data stays yours.** Background, target lists, and drafts live in *your* Cloudflare + Notion. No shared backend.
+- **It won't invent emails** (either mode). No public address → blank field. No pattern-guessing.
+- **It can't send email.** `gmail.compose` = drafts only. Sending is a human action, every time.
+- **Read only what you're allowed to.** Public directories/portfolios only. Respect `robots.txt` and terms. Be thoughtful with people's inboxes.
 
 ---
 
 ## 🧩 Customizing & extending
 
-- **Change the voice of the emails**: edit the `SYSTEM_PROMPT` in [`src/drafting/groq.ts`](src/drafting/groq.ts) (there's a banned-clichés list you can tune).
-- **Change what gets extracted**: edit the prompt in [`src/extract/extractWithLLM.ts`](src/extract/extractWithLLM.ts).
-- **Add Notion columns**: add the property in Notion, then map it in [`src/notion/schema.ts`](src/notion/schema.ts) and [`src/notion/sync.ts`](src/notion/sync.ts).
-- **Change the schedule**: edit the `crons` line in [`wrangler.toml`](wrangler.toml) (it's standard cron syntax).
-- **Deeper extraction**: flip `ENABLE_PROFILE_SECOND_PASS` to `true` if you find listing pages often lack emails.
+- **Email voice:** edit the mode prompts in [`src/drafting/groq.ts`](src/drafting/groq.ts) (there's a banned-clichés list).
+- **What gets extracted:** edit the prompts in [`src/extract/extractWithLLM.ts`](src/extract/extractWithLLM.ts).
+- **A new mode:** `mode` is a free string — add a prompt branch in the two files above; everything else generalizes.
+- **Notion columns:** add the property in Notion, then map it in [`src/notion/schema.ts`](src/notion/schema.ts) + [`src/notion/sync.ts`](src/notion/sync.ts).
+- **Schedule:** edit `crons` in [`wrangler.toml`](wrangler.toml).
 
 ---
 
 ## 🩺 Troubleshooting
 
-| Symptom | Likely fix |
+| Symptom | Fix |
 |---|---|
-| Notion API returns **404** | You didn't share the database with your integration (Step 4.2), or the `NOTION_DATABASE_ID` is wrong. |
-| No rows appear after a scrape | Check `npm run tail` logs. Common causes: `config:source-urls` not pushed (`npm run config:push`), or a page that returned non-HTML. |
-| Webhook does nothing when I tick the box | Confirm the automation trigger is the **checkbox** property (not a to-do block), the URL includes `?secret=…`, and the Worker is deployed. Check `npm run tail`. |
-| **401** from the webhook | The `secret` in the automation URL doesn't match your `WEBHOOK_SECRET`. |
-| `gmail:auth` says "No refresh_token" | Revoke prior access at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) and re-run — Google only returns a refresh token on first consent. |
-| Gmail draft link opens the Drafts list, not the draft | Harmless — your newest draft is at the top. Some Gmail clients don't honor the deep-link id. |
-| Draft created but recipient is blank | No public email was found on the page (by design). Fill in the **To** field in Gmail before sending. |
-| Rows are duplicated | Names differ across pages (e.g. "J. Smith" vs "Jane Smith") with no email to match on. Add emails or merge in Notion. |
+| Notion **404** | Didn't share the DB with the integration, or wrong `NOTION_DATABASE_ID`. |
+| Scrape reports `stoppedEarly: true` | Expected on big directories — run `/scrape` again to continue (free-tier subrequest budget). |
+| Rows didn't appear but no errors | Check the scrape's JSON report / `npm run tail`. Confirm `config:push` ran for the right `--env`. |
+| Webhook does nothing | Automation trigger must be the **checkbox** property; URL must include `?secret=`; worker deployed. Check `npm run tail`. |
+| **401** from webhook | `secret` in the automation URL ≠ your `WEBHOOK_SECRET`. |
+| `gmail:auth` "No refresh_token" | Revoke at [myaccount.google.com/permissions](https://myaccount.google.com/permissions) and re-run. |
+| Draft recipient blank | No public email found (by design) — fill **To** in Gmail. |
+| Duplicate rows | The next scrape archives exact duplicates (same email, or name+entity), keeping the most complete. You can also tick **Remove**. |
 
 ---
 
 ## 🗂️ Project structure
 
 ```
-researchmailos/
+coldmailos/
 ├── src/
 │   ├── index.ts              # Worker entry: routes cron + webhook
-│   ├── cron.ts               # the weekly scrape pipeline
-│   ├── config.ts             # loads per-user config from KV
+│   ├── cron.ts               # budgeted, resumable scrape + dedupe archival
+│   ├── config.ts             # loads per-user config + mode from KV
 │   ├── types.ts              # shared types
 │   ├── extract/
 │   │   ├── fetchPage.ts      # fetch + readability-style text extraction
-│   │   ├── extractWithLLM.ts # Groq structured extraction (no-fabrication prompt)
+│   │   ├── extractWithLLM.ts # mode-based extraction + startup email hunt
 │   │   └── cache.ts          # content-hash skip logic (KV)
 │   ├── notion/
-│   │   ├── client.ts         # thin Notion REST wrapper + property helpers
-│   │   ├── schema.ts         # database property names (edit if you rename columns)
-│   │   └── sync.ts           # dedupe + upsert people
-│   ├── drafting/
-│   │   └── groq.ts           # personalized outreach email generation
-│   ├── gmail/
-│   │   └── drafts.ts         # OAuth refresh + drafts.create (draft-only)
-│   └── webhook/
-│       └── handler.ts        # verify secret → read row → draft → Gmail draft
+│   │   ├── client.ts         # Notion REST wrapper (query/create/update/archive)
+│   │   ├── schema.ts         # database property names
+│   │   └── sync.ts           # dedupe + duplicate detection
+│   ├── drafting/groq.ts      # mode-based outreach drafting
+│   ├── gmail/drafts.ts       # OAuth refresh + drafts.create (draft-only)
+│   └── webhook/handler.ts    # verify secret → draft, or remove/archive
 ├── scripts/
-│   ├── get-gmail-token.mjs   # one-time Gmail OAuth (zero deps)
-│   └── push-config.mjs       # push config files → KV
-├── config.schema.json        # shape of the two private config files
-├── source-urls.example.json  # generic example URL list
+│   ├── get-gmail-token.mjs   # one-time Gmail OAuth
+│   └── push-config.mjs       # push config → KV (--env aware)
+├── config.schema.json
+├── source-urls.example.research.json
+├── source-urls.example.startup.json
 ├── private-config.example.json
-├── wrangler.toml             # Worker config (bindings, cron, vars)
+├── wrangler.toml             # research + startups environments
 └── README.md
 ```
 
@@ -474,7 +366,7 @@ researchmailos/
 
 ## 🤝 Contributing
 
-Issues and PRs welcome. Good first contributions: better readability extraction, more resilient Notion payload parsing, additional draft-tone presets, or a one-click Notion database template. Keep the two non-negotiables intact — **never fabricate emails, never send mail** — and keep the repo free of any hardcoded institutions.
+Issues and PRs welcome. Keep the non-negotiables intact — **never fabricate emails, never send mail** — and keep the repo free of hardcoded targets. Good first PRs: more robust readability extraction, additional modes, tone presets, a one-click Notion template.
 
 ## 📄 License
 
@@ -482,5 +374,5 @@ Issues and PRs welcome. Good first contributions: better readability extraction,
 
 <div align="center">
 <br>
-<sub>Built for anyone who's ever stared at a blank email to a professor and thought "there has to be a better way."</sub>
+<sub>Built for anyone who's ever stared at a blank email to a professor or a founder and thought "there has to be a better way."</sub>
 </div>
