@@ -3,43 +3,47 @@ import { runScrape } from "./cron";
 import { handleWebhook } from "./webhook/handler";
 
 /**
- * ResearchMailOS Worker entry.
- *   scheduled → the weekly scrape (extract researchers → Notion).
- *   fetch     → the Notion checkbox webhook (draft email → Gmail draft).
+ * ColdMailOS Worker entry.
+ *   scheduled → the weekly scrape (extract contacts → Notion).
+ *   fetch     → the Notion checkbox webhook (draft email → Gmail draft; or remove).
  */
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      runScrape(env).catch((err) => console.error("[scheduled] scrape failed:", err)),
-    );
+    // Scheduled handlers get the full time budget, so awaiting inside waitUntil is fine.
+    ctx.waitUntil(runScrape(env).catch((err) => console.error("[scheduled] scrape failed:", err)));
   },
 
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
-    // Notion automation webhook.
+    // Notion automation webhook (draft / remove).
     if (request.method === "POST" && url.pathname === "/webhook/notion") {
       return handleWebhook(request, env);
     }
 
-    // Manually kick off a scrape (protected by the same webhook secret).
+    // Manually trigger a scrape. We AWAIT it (not waitUntil) so it runs within
+    // the request lifetime instead of being cancelled ~30s after the response.
     if (request.method === "POST" && url.pathname === "/scrape") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
-      if (secret !== env.WEBHOOK_SECRET) {
-        return new Response("unauthorized", { status: 401 });
+      if (secret !== env.WEBHOOK_SECRET) return new Response("unauthorized\n", { status: 401 });
+      try {
+        const report = await runScrape(env);
+        return new Response(JSON.stringify(report, null, 2) + "\n", {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(`scrape failed: ${err instanceof Error ? err.message : err}\n`, {
+          status: 500,
+        });
       }
-      ctx.waitUntil(runScrape(env).catch((err) => console.error("[scrape] failed:", err)));
-      return new Response("scrape started\n", { status: 202 });
     }
 
-    if (url.pathname === "/health") {
-      return new Response("ok\n");
-    }
+    if (url.pathname === "/health") return new Response("ok\n");
 
     if (url.pathname === "/") {
       return new Response(
-        "ResearchMailOS is running.\n\n" +
-          "POST /webhook/notion  — Notion checkbox automation target\n" +
+        "ColdMailOS is running.\n\n" +
+          "POST /webhook/notion  — Notion automation target (draft / remove)\n" +
           "POST /scrape          — manually trigger a scrape (needs ?secret=)\n" +
           "GET  /health          — health check\n",
         { headers: { "Content-Type": "text/plain" } },

@@ -56,6 +56,14 @@ export class NotionClient {
       body: JSON.stringify({ properties }),
     });
   }
+
+  /** Archive (move to trash) a page — used by Remove and dedupe. Recoverable in Notion. */
+  archivePage(pageId: string) {
+    return this.request<NotionPage>(`/pages/${pageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ archived: true }),
+    });
+  }
 }
 
 // ── Property builders (Notion's shape is verbose; keep it in one place) ──────
