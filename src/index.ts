@@ -6,6 +6,7 @@ import { suppress, verifyUnsubscribe } from "./suppress";
 import { runFollowUps } from "./followups";
 import { recordEvent, pixelResponse } from "./tracking";
 import { enqueueAllUrls, handleScrapeBatch, type ScrapeMessage } from "./queue";
+import { runSetup } from "./notion/setup";
 
 /**
  * ColdMailOS Worker entry.
@@ -85,6 +86,24 @@ export default {
       return new Response("invalid unsubscribe link\n", { status: 400 });
     }
 
+    // Ensure the Notion DB has every column the code needs + arrange the view.
+    if (request.method === "POST" && url.pathname === "/setup") {
+      const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
+      if (!timingSafeEqual(secret, env.WEBHOOK_SECRET)) {
+        return new Response("unauthorized\n", { status: 401 });
+      }
+      try {
+        const report = await runSetup(env);
+        return new Response(JSON.stringify(report, null, 2) + "\n", {
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        return new Response(`setup failed: ${err instanceof Error ? err.message : err}\n`, {
+          status: 500,
+        });
+      }
+    }
+
     // Draft due follow-ups for rows in the Emailed state (draft-only). Secret-gated.
     if (request.method === "POST" && url.pathname === "/followups") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
@@ -109,6 +128,7 @@ export default {
       return new Response(
         "ColdMailOS is running.\n\n" +
           "POST /webhook/notion  - Notion automation target (draft / remove)\n" +
+          "POST /setup           - ensure Notion columns + arrange the view (needs ?secret=)\n" +
           "POST /scrape          - manually trigger a scrape (needs ?secret=)\n" +
           "POST /followups       - draft due follow-ups (needs ?secret=)\n" +
           "GET  /unsubscribe     - one-click opt-out (signed token)\n" +

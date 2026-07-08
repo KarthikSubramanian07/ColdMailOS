@@ -7,25 +7,52 @@ export class NotionClient {
   constructor(private env: Env) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${NOTION_API}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${this.env.NOTION_TOKEN}`,
-        "Notion-Version": this.env.NOTION_VERSION,
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Notion ${init.method ?? "GET"} ${path} failed (${res.status}): ${detail}`);
+    const headers = {
+      Authorization: `Bearer ${this.env.NOTION_TOKEN}`,
+      "Notion-Version": this.env.NOTION_VERSION,
+      "Content-Type": "application/json",
+      ...init.headers,
+    };
+    // Notion allows ~3 req/s and returns 429 (or 529 overload) with Retry-After;
+    // retry those and transient 5xx with backoff instead of throwing immediately.
+    let res: Response | null = null;
+    const maxAttempts = 4;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      res = await fetch(`${NOTION_API}${path}`, { ...init, headers });
+      if (res.status !== 429 && res.status !== 529 && res.status < 500) break;
+      if (attempt === maxAttempts - 1) break;
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 400;
+      await new Promise((r) => setTimeout(r, waitMs + 200));
+    }
+    if (!res || !res.ok) {
+      const detail = res ? await res.text().catch(() => "") : "no response";
+      throw new Error(`Notion ${init.method ?? "GET"} ${path} failed (${res?.status}): ${detail}`);
     }
     return (await res.json()) as T;
+  }
+
+  /** Low-level request with a specific Notion-Version (for the newer Views API). */
+  requestVersioned<T>(path: string, version: string, init: RequestInit = {}): Promise<T> {
+    return this.request<T>(path, { ...init, headers: { "Notion-Version": version } });
   }
 
   /** Fetch a single page (used by the webhook to read row properties). */
   getPage(pageId: string) {
     return this.request<NotionPage>(`/pages/${pageId}`);
+  }
+
+  getDatabase(databaseId: string) {
+    return this.request<NotionDatabase>(`/databases/${databaseId}`);
+  }
+
+  /** Add/update database properties (used by /setup to ensure columns exist). */
+  updateDatabase(databaseId: string, properties: Record<string, unknown>) {
+    return this.request<NotionDatabase>(`/databases/${databaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ properties }),
+    });
   }
 
   /** Iterate every page in the database (paginated) - used to build the dedupe index. */
@@ -145,4 +172,9 @@ interface QueryResponse {
   results: NotionPage[];
   has_more: boolean;
   next_cursor: string | null;
+}
+export interface NotionDatabase {
+  id: string;
+  properties?: Record<string, { id?: string; type?: string }>;
+  data_sources?: { id: string; name?: string }[];
 }
