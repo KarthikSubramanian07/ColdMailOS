@@ -3,6 +3,8 @@ import { boolVar, intVar, loadMode, loadSourceUrls } from "./config";
 import { fetchPage } from "./extract/fetchPage";
 import { checkRobots } from "./extract/robots";
 import { extractContacts, huntEmail } from "./extract/extractWithLLM";
+import { verifyEmail } from "./verify/email";
+import { EMAIL_CONFIDENCE } from "./notion/schema";
 import {
   hashText,
   isUnchanged,
@@ -194,6 +196,13 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
             continue;
           }
         }
+      }
+
+      // Grade any email we have (syntax + role/disposable + MX-via-DoH) so the
+      // board shows confidence and drafting only pre-fills a "Safe" recipient.
+      if (contact.email && budget > SAFETY_MARGIN) {
+        const verdict = await verifyEmail(env, contact.email, () => budget--);
+        contact.email_confidence = EMAIL_CONFIDENCE[verdict.grade];
       }
 
       // Reserve all of this contact's keys (name+entity and email) so later

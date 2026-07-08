@@ -16,6 +16,7 @@ export const PROPS = {
   contextSummary: "Context Summary", // rich text
   backing: "Backing/Affiliation", // rich text
   email: "Email", // email
+  emailConfidence: "Email Confidence", // select: Safe / Risky / Unknown
   profileUrl: "Profile URL", // url
   sourceUrl: "Source URL", // url
   status: "Status", // select
@@ -32,4 +33,11 @@ export const STATUS = {
   emailed: "Emailed",
   replied: "Replied",
   noResponse: "No Response",
+} as const;
+
+/** Email Confidence select options (set by email verification). */
+export const EMAIL_CONFIDENCE = {
+  safe: "Safe",
+  risky: "Risky",
+  unknown: "Unknown",
 } as const;

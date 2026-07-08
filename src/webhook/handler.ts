@@ -8,8 +8,9 @@ import {
   readEmail,
   readCheckbox,
   readUrl,
+  readSelect,
 } from "../notion/client";
-import { PROPS } from "../notion/schema";
+import { PROPS, EMAIL_CONFIDENCE } from "../notion/schema";
 import { draftEmail } from "../drafting/groq";
 import { createDraft } from "../gmail/drafts";
 import { timingSafeEqual } from "../security";
@@ -76,9 +77,13 @@ async function processRow(env: Env, pageId: string) {
     [PROPS.draftBody]: prop.richText(draft.body),
   });
 
-  // 3) Create the Gmail draft (recipient pre-filled only if we have an email).
+  // 3) Create the Gmail draft. Pre-fill the recipient unless verification graded
+  // the address "Risky" (role/disposable/no-MX) - then leave To blank so you
+  // add a verified address yourself before sending.
+  const confidence = readSelect(page, PROPS.emailConfidence);
+  const prefillTo = contact.email && confidence !== EMAIL_CONFIDENCE.risky ? contact.email : null;
   const gmail = await createDraft(env, {
-    to: contact.email,
+    to: prefillTo,
     subject: draft.subject,
     body: draft.body,
     from: profile.senderEmail,
@@ -89,7 +94,8 @@ async function processRow(env: Env, pageId: string) {
 
   return {
     contact: contact.contact_name,
-    recipientPrefilled: Boolean(contact.email),
+    recipientPrefilled: Boolean(prefillTo),
+    emailConfidence: confidence,
     gmailDraftLink: gmail.link,
   };
 }

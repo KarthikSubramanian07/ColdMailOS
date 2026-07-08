@@ -11,6 +11,9 @@ export function contactToProperties(contact: Contact): Record<string, unknown> {
     [PROPS.contextSummary]: prop.richText(contact.context_summary),
     [PROPS.backing]: prop.richText(contact.backing_or_affiliation),
     [PROPS.email]: prop.email(contact.email),
+    [PROPS.emailConfidence]: contact.email_confidence
+      ? prop.select(contact.email_confidence)
+      : { select: null },
     [PROPS.profileUrl]: prop.url(contact.profile_url),
     [PROPS.sourceUrl]: prop.url(contact.source_url ?? null),
     [PROPS.status]: prop.select(STATUS.notContacted),

@@ -45,6 +45,8 @@ export interface Contact {
   backing_or_affiliation: string | null;
   profile_url: string | null;
   source_url?: string;
+  /** Set by the pipeline after email verification: "Safe" | "Risky" | "Unknown". */
+  email_confidence?: string | null;
 }
 
 /** The user's private background - feeds the drafting prompt. */

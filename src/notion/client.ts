@@ -99,6 +99,9 @@ export function readUrl(page: NotionPage, name: string): string | null {
 export function readCheckbox(page: NotionPage, name: string): boolean {
   return page.properties?.[name]?.checkbox ?? false;
 }
+export function readSelect(page: NotionPage, name: string): string | null {
+  return page.properties?.[name]?.select?.name ?? null;
+}
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) : s;
