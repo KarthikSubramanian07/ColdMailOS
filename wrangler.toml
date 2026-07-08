@@ -27,6 +27,7 @@ MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
+ENABLE_INSIGHT = "true"
 
 [[kv_namespaces]]
 binding = "KV"
@@ -47,6 +48,7 @@ MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
+ENABLE_INSIGHT = "true"
 
 [[env.research.kv_namespaces]]
 binding = "KV"
@@ -69,6 +71,7 @@ MAX_PAGES_PER_RUN = "200"
 LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
+ENABLE_INSIGHT = "true"
 
 [[env.startups.kv_namespaces]]
 binding = "KV"

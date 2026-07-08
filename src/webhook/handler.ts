@@ -15,6 +15,7 @@ import { draftEmail } from "../drafting/groq";
 import { createDraft } from "../gmail/drafts";
 import { timingSafeEqual } from "../security";
 import { isSuppressed, unsubscribeUrl } from "../suppress";
+import { gatherInsight } from "../insight";
 
 /**
  * Handles the POST from Notion's "Send webhook" automations:
@@ -74,8 +75,10 @@ async function processRow(env: Env, pageId: string, origin: string) {
 
   const profile = await loadProfile(env);
 
-  // 1) Draft the email (mode comes from the profile).
-  const draft = await draftEmail(env, contact, profile);
+  // 1) Research the contact's own page for one specific, referenceable detail
+  // (unless disabled), then draft the email grounded in it (mode from profile).
+  const insight = env.ENABLE_INSIGHT !== "false" ? await gatherInsight(env, contact, profile) : null;
+  const draft = await draftEmail(env, contact, profile, insight);
 
   // 2) Write the draft text back so it's visible in Notion.
   await notion.updatePage(pageId, {

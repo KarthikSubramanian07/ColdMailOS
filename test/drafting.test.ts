@@ -42,6 +42,12 @@ describe("buildUserPrompt", () => {
     expect(buildUserPrompt(contact, { ...profile, mode: "startup" })).toContain("FOUNDER");
     expect(buildUserPrompt(contact, profile)).toContain("RECIPIENT");
   });
+  it("includes research insight when provided, omits the section otherwise", () => {
+    const withInsight = buildUserPrompt(contact, profile, "Specific detail to reference: new alignment paper");
+    expect(withInsight).toContain("ADDITIONAL RESEARCH");
+    expect(withInsight).toContain("new alignment paper");
+    expect(buildUserPrompt(contact, profile)).not.toContain("ADDITIONAL RESEARCH");
+  });
 });
 
 describe("parseDraft", () => {

@@ -26,6 +26,8 @@ export interface Env {
   MAX_SUBREQUESTS: string;
   /** Cap LLM extraction calls per run so a single /scrape finishes quickly. */
   MAX_LLM_CALLS_PER_RUN: string;
+  /** "false" disables research-before-draft insight gathering (default on). */
+  ENABLE_INSIGHT?: string;
 }
 
 /** Outreach mode. Free string (not a strict enum) so new modes are trivial. */

@@ -10,6 +10,7 @@ Hard rules:
   - Reference the recipient's SPECIFIC work (given as "context"). Never use generic praise.
   - Under 200 words in the body. Every sentence earns its place.
   - Ground the sender's fit in their real background/interests. Do not invent accomplishments.
+  - Cite ONE concrete detail from the sender's background/resume that connects to the recipient's work.
   - End with ONE clear, low-pressure ask (e.g. whether they're taking students, or a short chat).
   - Plain, human, specific. No corporate tone.
   - ${BANNED}
@@ -21,6 +22,7 @@ const STARTUP_SYSTEM = `You write short, confident cold emails on behalf of a pe
 Hard rules:
   - Reference the company's SPECIFIC work (given as "context"). Never use generic flattery.
   - Connect relevant, real background from the sender's profile to what the company does. Do not invent accomplishments.
+  - Cite ONE concrete detail from the sender's background/resume that connects to what the company does.
   - If the sender stated an opportunity type (internship / full-time), reflect it.
   - If backing/affiliation is known (e.g. YC-backed), a brief nod is fine, but don't make it the focus.
   - Under 150 words in the body. Confident, not fawning.
@@ -38,19 +40,24 @@ export async function draftEmail(
   env: Env,
   contact: Contact,
   profile: ProfileConfig,
+  insight?: string | null,
 ): Promise<DraftResult> {
   const content = await groqJson(
     env,
     [
       { role: "system", content: systemPrompt(profile.mode) },
-      { role: "user", content: buildUserPrompt(contact, profile) },
+      { role: "user", content: buildUserPrompt(contact, profile, insight) },
     ],
     { temperature: 0.6, schema: DRAFT_JSON_SCHEMA },
   );
   return parseDraft(content, profile);
 }
 
-export function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
+export function buildUserPrompt(
+  contact: Contact,
+  profile: ProfileConfig,
+  insight?: string | null,
+): string {
   const recipientLabel = profile.mode === "startup" ? "FOUNDER / COMPANY" : "RECIPIENT";
   const lines = [
     ` ${recipientLabel} `,
@@ -59,6 +66,7 @@ export function buildUserPrompt(contact: Contact, profile: ProfileConfig): strin
     contact.entity_name ? `Entity: ${contact.entity_name}` : null,
     contact.backing_or_affiliation ? `Backing/affiliation: ${contact.backing_or_affiliation}` : null,
     `Context: ${contact.context_summary ?? "(not stated - keep it brief and honest)"}`,
+    insight ? `\nADDITIONAL RESEARCH (reference the specific detail; do not invent):\n${insight}` : null,
     "",
     " SENDER (the person emailing) ",
     `Name: ${profile.name}`,

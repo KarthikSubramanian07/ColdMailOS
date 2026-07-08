@@ -81,6 +81,29 @@ export const DRAFT_JSON_SCHEMA = {
 
 export const EmailHitZ = z.object({ email: z.string().nullable() });
 
+// ── Insight (research-before-draft) ──────────────────────────────────────────
+
+export const InsightZ = z.object({
+  summary: z.string().nullable(),
+  specific_detail: z.string().nullable(),
+  fit_angle: z.string().nullable(),
+});
+
+export const INSIGHT_JSON_SCHEMA = {
+  name: "contact_insight",
+  strict: true,
+  schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["summary", "specific_detail", "fit_angle"],
+    properties: {
+      summary: nullableStr,
+      specific_detail: nullableStr,
+      fit_angle: nullableStr,
+    },
+  },
+} as const;
+
 export const EMAIL_JSON_SCHEMA = {
   name: "email_hunt",
   strict: true,
