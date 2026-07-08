@@ -14,6 +14,7 @@ import { PROPS, EMAIL_CONFIDENCE } from "../notion/schema";
 import { draftEmail } from "../drafting/groq";
 import { createDraft } from "../gmail/drafts";
 import { timingSafeEqual } from "../security";
+import { isSuppressed, unsubscribeUrl } from "../suppress";
 
 /**
  * Handles the POST from Notion's "Send webhook" automations:
@@ -34,7 +35,7 @@ export async function handleWebhook(request: Request, env: Env): Promise<Respons
   if (!pageId) return json({ error: "no page id in payload" }, 400);
 
   try {
-    const result = await processRow(env, pageId);
+    const result = await processRow(env, pageId, new URL(request.url).origin);
     return json({ ok: true, ...result });
   } catch (err) {
     console.error("[webhook]", err);
@@ -42,7 +43,7 @@ export async function handleWebhook(request: Request, env: Env): Promise<Respons
   }
 }
 
-async function processRow(env: Env, pageId: string) {
+async function processRow(env: Env, pageId: string, origin: string) {
   const notion = new NotionClient(env);
   const page = await notion.getPage(pageId);
 
@@ -66,6 +67,11 @@ async function processRow(env: Env, pageId: string) {
   };
   if (!contact.contact_name) return { skipped: "row has no name" };
 
+  // Never draft to a suppressed (opted-out/bounced) address.
+  if (contact.email && (await isSuppressed(env, contact.email))) {
+    return { skipped: "suppressed" };
+  }
+
   const profile = await loadProfile(env);
 
   // 1) Draft the email (mode comes from the profile).
@@ -82,11 +88,15 @@ async function processRow(env: Env, pageId: string) {
   // add a verified address yourself before sending.
   const confidence = readSelect(page, PROPS.emailConfidence);
   const prefillTo = contact.email && confidence !== EMAIL_CONFIDENCE.risky ? contact.email : null;
+  const listUnsubscribe = prefillTo
+    ? await unsubscribeUrl(origin, env.WEBHOOK_SECRET, prefillTo)
+    : undefined;
   const gmail = await createDraft(env, {
     to: prefillTo,
     subject: draft.subject,
     body: draft.body,
     from: profile.senderEmail,
+    listUnsubscribe,
   });
 
   // 4) Save the draft link back into Notion.

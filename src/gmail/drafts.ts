@@ -8,6 +8,7 @@ export interface DraftInput {
   subject: string;
   body: string;
   from?: string; // optional From display; defaults to the authenticated account
+  listUnsubscribe?: string; // optional one-click unsubscribe URL (RFC 8058)
 }
 
 export interface DraftOutput {
@@ -71,11 +72,14 @@ export async function createDraft(env: Env, input: DraftInput): Promise<DraftOut
 }
 
 /** Build an RFC 2822 message and base64url-encode it for the Gmail API. */
-export function buildRawMessage({ to, subject, body, from }: DraftInput): string {
+export function buildRawMessage({ to, subject, body, from, listUnsubscribe }: DraftInput): string {
   const headers = [
     from ? `From: ${sanitizeHeader(from)}` : null,
     to ? `To: ${sanitizeHeader(to)}` : null,
     `Subject: ${encodeHeader(subject)}`,
+    // One-click unsubscribe (only meaningful when there's a recipient).
+    to && listUnsubscribe ? `List-Unsubscribe: <${sanitizeHeader(listUnsubscribe)}>` : null,
+    to && listUnsubscribe ? "List-Unsubscribe-Post: List-Unsubscribe=One-Click" : null,
     "MIME-Version: 1.0",
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",

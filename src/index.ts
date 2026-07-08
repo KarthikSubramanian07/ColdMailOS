@@ -2,6 +2,7 @@ import type { Env } from "./types";
 import { runScrape } from "./cron";
 import { handleWebhook } from "./webhook/handler";
 import { timingSafeEqual } from "./security";
+import { suppress, verifyUnsubscribe } from "./suppress";
 
 /**
  * ColdMailOS Worker entry.
@@ -41,6 +42,20 @@ export default {
       }
     }
 
+    // One-click unsubscribe (RFC 8058 POST, or a GET from clicking the link).
+    // The token is an HMAC of the address, so only links we generated work.
+    if (url.pathname === "/unsubscribe") {
+      const email = url.searchParams.get("e") ?? "";
+      const token = url.searchParams.get("t") ?? "";
+      if (email && token && (await verifyUnsubscribe(env.WEBHOOK_SECRET, email, token))) {
+        await suppress(env, email);
+        return new Response("You're unsubscribed. You won't be contacted again.\n", {
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+      return new Response("invalid unsubscribe link\n", { status: 400 });
+    }
+
     if (url.pathname === "/health") return new Response("ok\n");
 
     if (url.pathname === "/") {
@@ -48,6 +63,7 @@ export default {
         "ColdMailOS is running.\n\n" +
           "POST /webhook/notion  - Notion automation target (draft / remove)\n" +
           "POST /scrape          - manually trigger a scrape (needs ?secret=)\n" +
+          "GET  /unsubscribe     - one-click opt-out (signed token)\n" +
           "GET  /health          - health check\n",
         { headers: { "Content-Type": "text/plain" } },
       );
