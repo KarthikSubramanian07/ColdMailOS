@@ -1,6 +1,7 @@
 import type { Env, Mode } from "./types";
 import { boolVar, intVar, loadMode, loadSourceUrls } from "./config";
 import { fetchPage } from "./extract/fetchPage";
+import { checkRobots } from "./extract/robots";
 import { extractContacts, huntEmail } from "./extract/extractWithLLM";
 import {
   hashText,
@@ -29,6 +30,7 @@ export interface ScrapeReport {
   skippedDuplicate: number;
   duplicatesArchived: number;
   emailsFoundViaFallback: number;
+  robotsBlocked: number;
   stoppedEarly: boolean;
   errors: string[];
 }
@@ -38,7 +40,7 @@ const SAFETY_MARGIN = 3;
 /**
  * Characters per LLM extraction chunk. Kept modest on purpose: a dense
  * directory chunk yields one JSON object per person, and too many at once
- * overflows the model's output-token limit → truncated, unparseable JSON →
+ * overflows the model's output-token limit -> truncated, unparseable JSON ->
  * zero contacts. Smaller chunks keep each response comfortably parseable.
  */
 const CHUNK_CHARS = 7_000;
@@ -46,8 +48,8 @@ const CHUNK_OVERLAP = 500;
 
 /**
  * The scrape job. Fetches each page, skips unchanged ones (content hash),
- * extracts contacts per mode — CHUNKING large pages so nobody is truncated
- * away — then incrementally creates Notion rows within the free-plan
+ * extracts contacts per mode - CHUNKING large pages so nobody is truncated
+ * away - then incrementally creates Notion rows within the free-plan
  * subrequest budget. Extractions are cached by content hash, so a big page
  * that needs several runs to fully sync is only sent to the LLM once. A page's
  * hash is saved ONLY when all its contacts are written. Also archives exact
@@ -73,6 +75,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
     skippedDuplicate: 0,
     duplicatesArchived: 0,
     emailsFoundViaFallback: 0,
+    robotsBlocked: 0,
     stoppedEarly: false,
     errors: [],
   };
@@ -107,9 +110,19 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       break;
     }
 
+    // Respect robots.txt before touching the page (cached per origin in KV).
+    const gate = await checkRobots(env, url);
+    if (gate.fetched) budget--;
+    if (!gate.allowed) {
+      report.robotsBlocked++;
+      report.errors.push(`robots.txt disallows ${url}`);
+      continue;
+    }
+    if (gate.crawlDelayMs) await sleep(Math.min(gate.crawlDelayMs, 10_000));
+
     let text: string;
     try {
-      text = await fetchPage(url);
+      text = await fetchPage(url, env);
       budget--;
     } catch (err) {
       report.urlsFailed++;
@@ -145,13 +158,13 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
         report.errors.push(`extract ${url} chunk ${state.nextChunk}: ${errText(err)}`);
         state.nextChunk++; // skip a persistently-failing chunk so the page can still finish
       }
-      await putExtractionState(env, hash, state); // KV write — not a subrequest
+      await putExtractionState(env, hash, state); // KV write - not a subrequest
     }
     if (state.nextChunk >= chunks.length) {
       state.done = true;
       await putExtractionState(env, hash, state);
     }
-    if (!state.done) break; // out of per-run budget mid-extraction — resume next run
+    if (!state.done) break; // out of per-run budget mid-extraction - resume next run
 
     const contacts = dedupeBatch(state.contacts);
 
@@ -201,7 +214,7 @@ export async function runScrape(env: Env): Promise<ScrapeReport> {
       await saveHash(env, url, hash);
       report.urlsProcessed++;
     } else {
-      break; // out of budget — leave unhashed so the next run resumes this page
+      break; // out of budget - leave unhashed so the next run resumes this page
     }
   }
 
@@ -227,9 +240,11 @@ async function tryFindEmail(
   spend: () => void,
 ): Promise<string | null> {
   for (const candidate of candidatePages(baseUrl, mode)) {
+    const gate = await checkRobots(env, candidate);
+    if (!gate.allowed) continue; // honor robots.txt on fallback fetches too
     let text: string;
     try {
-      text = await fetchPage(candidate);
+      text = await fetchPage(candidate, env);
       spend();
     } catch {
       continue;
