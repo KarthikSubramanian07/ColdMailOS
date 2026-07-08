@@ -1,21 +1,21 @@
-# ── Per-user private config — NEVER commit these ────────────────────────────
+#  Per-user private config - NEVER commit these 
 source-urls.json
 private-config.json
 resume.md
 resume.txt
 resume.pdf
 
-# ── Local secrets ───────────────────────────────────────────────────────────
+#  Local secrets 
 .env
 .dev.vars
 
-# ── Dependencies / build / tooling ──────────────────────────────────────────
+#  Dependencies / build / tooling 
 node_modules/
 dist/
 .wrangler/
 .mf/
 
-# ── Noise ───────────────────────────────────────────────────────────────────
+#  Noise 
 *.log
 .DS_Store
 .idea/

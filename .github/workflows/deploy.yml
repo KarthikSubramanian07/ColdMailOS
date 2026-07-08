@@ -1,9 +1,9 @@
 name: Deploy
 
-# Deploys both environments on every push to main — but only if the
+# Deploys both environments on every push to main - but only if the
 # CLOUDFLARE_API_TOKEN repo secret is configured. Tests must pass first.
-# Add the secret at: Settings → Secrets and variables → Actions → New secret.
-# Create the token at: Cloudflare dashboard → My Profile → API Tokens
+# Add the secret at: Settings -> Secrets and variables -> Actions -> New secret.
+# Create the token at: Cloudflare dashboard -> My Profile -> API Tokens
 # (use the "Edit Cloudflare Workers" template).
 
 on:
@@ -39,4 +39,4 @@ jobs:
 
       - name: Note if token missing
         if: env.CLOUDFLARE_API_TOKEN == ''
-        run: echo "::notice::CLOUDFLARE_API_TOKEN not set — skipped deploy. Add it in repo secrets to enable CD."
+        run: echo "::notice::CLOUDFLARE_API_TOKEN not set - skipped deploy. Add it in repo secrets to enable CD."

@@ -22,7 +22,7 @@ export function contactToProperties(contact: Contact): Record<string, unknown> {
 /**
  * Dedupe keys for a contact. The name+entity key is ALWAYS present and is the
  * stable identity; the email key is added when an email exists. A contact is a
- * duplicate if ANY of its keys matches a seen key — this collapses the case
+ * duplicate if ANY of its keys matches a seen key - this collapses the case
  * where the same person appears with an email in one source and without it in
  * another (which would otherwise create two rows).
  */
@@ -51,7 +51,7 @@ export function dedupeBatch(contacts: Contact[]): Contact[] {
   return [...map.values()];
 }
 
-// ── Existing-row indexing + duplicate detection (for the removal pass) ───────
+//  Existing-row indexing + duplicate detection (for the removal pass) 
 
 export interface ExistingRow {
   pageId: string;
@@ -83,7 +83,7 @@ export async function loadExistingRows(
 }
 
 /**
- * Given all rows, return the page IDs of duplicates to archive — grouping by the
+ * Given all rows, return the page IDs of duplicates to archive - grouping by the
  * name+entity identity and keeping, per group, the most complete row (ties keep
  * the first). Grouping by name+entity (not email) catches same-person rows that
  * differ only by whether an email was captured.
@@ -104,7 +104,7 @@ export function duplicatePageIds(rows: ExistingRow[]): string[] {
   return toArchive;
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+//  helpers 
 
 function mergeContacts(a: Contact, b: Contact): Contact {
   return {

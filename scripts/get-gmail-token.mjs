@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
-//  One-time Gmail OAuth — mints a refresh token for the gmail.compose scope.
+// 
+//  One-time Gmail OAuth - mints a refresh token for the gmail.compose scope.
 //  Zero dependencies. Run once locally:  npm run gmail:auth
 //
-//  Prereqs (see README → "Gmail"):
-//    • A Google Cloud OAuth 2.0 "Web application" client.
-//    • Authorized redirect URI: http://localhost:5173/oauth2callback
-//    • GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env (copy .env.example).
-// ─────────────────────────────────────────────────────────────────────────────
+//  Prereqs (see README -> "Gmail"):
+//    - A Google Cloud OAuth 2.0 "Web application" client.
+//    - Authorized redirect URI: http://localhost:5173/oauth2callback
+//    - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env (copy .env.example).
+// 
 
 import http from "node:http";
 import { readFileSync } from "node:fs";
@@ -23,8 +23,8 @@ const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   console.error(
-    "\n✗ Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.\n" +
-      "  Copy .env.example → .env and fill them in first.\n",
+    "\nMissing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET.\n" +
+      "  Copy .env.example -> .env and fill them in first.\n",
   );
   process.exit(1);
 }
@@ -51,7 +51,7 @@ const server = http.createServer(async (req, res) => {
   const error = url.searchParams.get("error");
   if (error || !code) {
     res.writeHead(400, { "Content-Type": "text/html" }).end(`<h2>OAuth failed: ${error}</h2>`);
-    console.error("\n✗ OAuth error:", error);
+    console.error("\nOAuth error:", error);
     server.close();
     process.exit(1);
   }
@@ -78,18 +78,18 @@ const server = http.createServer(async (req, res) => {
     }
 
     res.writeHead(200, { "Content-Type": "text/html" }).end(
-      "<h2>✓ Done — you can close this tab and return to the terminal.</h2>",
+      "<h2>Done - you can close this tab and return to the terminal.</h2>",
     );
 
-    console.log("\n✓ Success! Store this as a Cloudflare secret:\n");
+    console.log("\nSuccess! Store this as a Cloudflare secret:\n");
     console.log("  wrangler secret put GMAIL_REFRESH_TOKEN");
     console.log("  (paste the value below when prompted)\n");
-    console.log("─".repeat(60));
+    console.log("".repeat(60));
     console.log(data.refresh_token);
-    console.log("─".repeat(60) + "\n");
+    console.log("".repeat(60) + "\n");
   } catch (err) {
     res.writeHead(500, { "Content-Type": "text/html" }).end(`<h2>${err.message}</h2>`);
-    console.error("\n✗", err.message);
+    console.error("\n", err.message);
   } finally {
     server.close();
     setTimeout(() => process.exit(0), 200);
@@ -97,12 +97,12 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\nOpening your browser to authorize Gmail (draft-only) access…`);
+  console.log(`\nOpening your browser to authorize Gmail (draft-only) access...`);
   console.log(`If it doesn't open, visit:\n\n${authUrl}\n`);
   open(authUrl);
 });
 
-// ── tiny helpers ─────────────────────────────────────────────────────────────
+//  tiny helpers 
 
 function open(target) {
   const cmd =
@@ -121,6 +121,6 @@ function loadDotenv() {
       if (!(key in process.env)) process.env[key] = val;
     }
   } catch {
-    // no .env — rely on real env vars
+    // no .env - rely on real env vars
   }
 }

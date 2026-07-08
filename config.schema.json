@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/researchmailos/researchmailos/config.schema.json",
-  "title": "ResearchMailOS configuration",
-  "description": "Shapes for the two per-user, gitignored config files. No real values live here — only the expected structure. Copy the *.example.json files and fill them in.",
+  "$id": "https://github.com/KarthikSubramanian07/ColdMailOS/config.schema.json",
+  "title": "ColdMailOS configuration",
+  "description": "Shapes for the two per-user, gitignored config files. No real values live here - only the expected structure. Copy the *.example.json files and fill them in.",
   "$defs": {
     "sourceUrls": {
       "title": "source-urls.json",
-      "description": "A flat list of public pages to extract researchers from. The tool treats every URL identically — department pages, lab pages, and faculty directories are all fine.",
+      "description": "A flat list of public pages to extract researchers from. The tool treats every URL identically - department pages, lab pages, and faculty directories are all fine.",
       "type": "array",
       "items": {
         "type": "string",
@@ -18,7 +18,7 @@
     },
     "privateConfig": {
       "title": "private-config.json",
-      "description": "Who you are, how you want to sound, and which mode. Feeds the extraction + drafting prompts. Secrets (API keys, tokens) do NOT go here — they are Cloudflare secrets.",
+      "description": "Who you are, how you want to sound, and which mode. Feeds the extraction + drafting prompts. Secrets (API keys, tokens) do NOT go here - they are Cloudflare secrets.",
       "type": "object",
       "additionalProperties": false,
       "required": ["mode", "name", "background", "interests"],
@@ -34,11 +34,11 @@
         },
         "background": {
           "type": "string",
-          "description": "1–3 sentences on who you are. Frame it for the mode — research experience for research, builder/project experience for startup."
+          "description": "1-3 sentences on who you are. Frame it for the mode - research experience for research, builder/project experience for startup."
         },
         "interests": {
           "type": "string",
-          "description": "What you want: research topics to work on, or the kind of company/role you're after. Be specific — this is matched against each contact's context."
+          "description": "What you want: research topics to work on, or the kind of company/role you're after. Be specific - this is matched against each contact's context."
         },
         "opportunityType": {
           "type": "string",
@@ -46,7 +46,7 @@
         },
         "resumeText": {
           "type": "string",
-          "description": "Optional. Plain-text CV highlights the model can draw concrete details from. For a full resume, drop a gitignored resume.md/resume.txt file instead — `npm run config:push` folds its contents in here automatically."
+          "description": "Optional. Plain-text CV highlights the model can draw concrete details from. For a full resume, drop a gitignored resume.md/resume.txt file instead - `npm run config:push` folds its contents in here automatically."
         },
         "tone": {
           "type": "string",

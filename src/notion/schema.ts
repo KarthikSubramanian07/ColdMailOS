@@ -6,8 +6,8 @@
  * dashboard" section walks through creating a database with these exact columns.
  *
  * Names are generalized so one schema serves both modes:
- *   research  →  Contact = professor, Entity = lab/department
- *   startup   →  Contact = founder,   Entity = company
+ *   research  ->  Contact = professor, Entity = lab/department
+ *   startup   ->  Contact = founder,   Entity = company
  */
 export const PROPS = {
   contactName: "Contact Name", // title
@@ -19,8 +19,8 @@ export const PROPS = {
   profileUrl: "Profile URL", // url
   sourceUrl: "Source URL", // url
   status: "Status", // select
-  trigger: "Draft Email", // checkbox — flipping ON drafts an email (the webhook)
-  remove: "Remove", // checkbox — flipping ON archives (removes) the row
+  trigger: "Draft Email", // checkbox - flipping ON drafts an email (the webhook)
+  remove: "Remove", // checkbox - flipping ON archives (removes) the row
   draftSubject: "Draft Subject", // rich text
   draftBody: "Draft Body", // rich text
   gmailDraft: "Gmail Draft", // url

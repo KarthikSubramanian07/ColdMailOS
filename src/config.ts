@@ -3,8 +3,8 @@ import type { Env, Mode, ProfileConfig } from "./types";
 /**
  * Per-user config lives in KV, not in the repo. It is pushed once with
  * `npm run config:push` (see scripts/push-config.mjs). Keys:
- *   config:source-urls  → string[]      (your list of pages to scrape)
- *   config:profile      → ProfileConfig (your mode + background / voice)
+ *   config:source-urls  -> string[]      (your list of pages to scrape)
+ *   config:profile      -> ProfileConfig (your mode + background / voice)
  */
 export const KV_KEYS = {
   sourceUrls: "config:source-urls",

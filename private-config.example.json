@@ -2,10 +2,10 @@
   "mode": "research",
   "name": "Ada Lovelace",
   "background": "Second-year CS undergrad at Example University. Built a small compiler over the summer and TA'd the intro systems course.",
-  "interests": "Programming languages and formal verification — especially making dependent types usable by everyday engineers.",
+  "interests": "Programming languages and formal verification - especially making dependent types usable by everyday engineers.",
   "opportunityType": "internship or full-time",
   "resumeText": "Projects: a toy dependently-typed language (Rust); a linter that caught 300+ real bugs in a campus codebase. Coursework: PL, compilers, discrete math, algorithms.",
   "tone": "Warm but concise. Curious, specific, and low-pressure. No buzzwords, no flattery, no 'I was impressed by your work'.",
-  "signature": "Ada Lovelace\nB.S. Computer Science, Example University\nada@example.edu · github.com/adalovelace",
+  "signature": "Ada Lovelace\nB.S. Computer Science, Example University\nada@example.edu - github.com/adalovelace",
   "senderEmail": "ada@example.edu"
 }

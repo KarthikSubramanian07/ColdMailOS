@@ -4,7 +4,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRAFTS_URL = "https://gmail.googleapis.com/gmail/v1/users/me/drafts";
 
 export interface DraftInput {
-  to: string | null; // recipient — left blank if no email was found
+  to: string | null; // recipient - left blank if no email was found
   subject: string;
   body: string;
   from?: string; // optional From display; defaults to the authenticated account
@@ -38,7 +38,7 @@ export async function getAccessToken(env: Env): Promise<string> {
 }
 
 /**
- * Create a Gmail DRAFT (never sends — the OAuth scope is gmail.compose only).
+ * Create a Gmail DRAFT (never sends - the OAuth scope is gmail.compose only).
  * The recipient is pre-filled when we found an email; otherwise it's left blank.
  */
 export async function createDraft(env: Env, input: DraftInput): Promise<DraftOutput> {

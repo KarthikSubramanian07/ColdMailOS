@@ -5,8 +5,8 @@ import { timingSafeEqual } from "./security";
 
 /**
  * ColdMailOS Worker entry.
- *   scheduled → the weekly scrape (extract contacts → Notion).
- *   fetch     → the Notion checkbox webhook (draft email → Gmail draft; or remove).
+ *   scheduled -> the weekly scrape (extract contacts -> Notion).
+ *   fetch     -> the Notion checkbox webhook (draft email -> Gmail draft; or remove).
  */
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -46,9 +46,9 @@ export default {
     if (url.pathname === "/") {
       return new Response(
         "ColdMailOS is running.\n\n" +
-          "POST /webhook/notion  — Notion automation target (draft / remove)\n" +
-          "POST /scrape          — manually trigger a scrape (needs ?secret=)\n" +
-          "GET  /health          — health check\n",
+          "POST /webhook/notion  - Notion automation target (draft / remove)\n" +
+          "POST /scrape          - manually trigger a scrape (needs ?secret=)\n" +
+          "GET  /health          - health check\n",
         { headers: { "Content-Type": "text/plain" } },
       );
     }

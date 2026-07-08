@@ -1,7 +1,7 @@
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 #  Local Worker secrets for `wrangler dev`. Copy to `.dev.vars` (gitignored).
 #  In production these are set with `wrangler secret put <NAME>` instead.
-# ─────────────────────────────────────────────────────────────────────────────
+# 
 GROQ_API_KEY=gsk_...
 NOTION_TOKEN=ntn_...
 NOTION_DATABASE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -16,14 +16,14 @@ import { timingSafeEqual } from "../security";
 
 /**
  * Handles the POST from Notion's "Send webhook" automations:
- *   • "Remove" checked      → archive (remove) the row.
- *   • "Draft Email" checked → draft a personalized email + create a Gmail draft.
+ *   - "Remove" checked      -> archive (remove) the row.
+ *   - "Draft Email" checked -> draft a personalized email + create a Gmail draft.
  * Verifies the shared secret first.
  */
 export async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const body = await request.json().catch(() => null);
 
-  // Notion webhook endpoint verification handshake — echo the token/challenge.
+  // Notion webhook endpoint verification handshake - echo the token/challenge.
   const challenge = extractChallenge(body);
   if (challenge) return json({ challenge });
 
@@ -94,7 +94,7 @@ async function processRow(env: Env, pageId: string) {
   };
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+//  Helpers 
 
 function verifySecret(request: Request, env: Env): boolean {
   const url = new URL(request.url);

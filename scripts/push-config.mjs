@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ─────────────────────────────────────────────────────────────────────────────
+// 
 //  Push your private config into Cloudflare KV so the deployed Worker can read
 //  it. Run after editing source-urls.json / private-config.json / resume.md:
 //
@@ -10,10 +10,10 @@
 //  Worker reads). Pass `--local` to target the local dev namespace instead.
 //
 //  Resume/CV: if a `resume.md` or `resume.txt` file exists (both gitignored),
-//  its full contents are folded into your profile as `resumeText` — so you can
+//  its full contents are folded into your profile as `resumeText` - so you can
 //  drop in a whole resume without escaping it into JSON. It stays private: it's
 //  only ever pushed to YOUR KV, never committed.
-// ─────────────────────────────────────────────────────────────────────────────
+// 
 
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -37,31 +37,31 @@ let pushed = 0;
 pushSourceUrls();
 pushProfile();
 const where = envName ? `${scopeLabel}, env=${envName}` : scopeLabel;
-console.log(pushed ? `\n✓ Pushed ${pushed} config item(s) to KV (${where}).\n` : "\nNothing pushed.\n");
+console.log(pushed ? `\nPushed ${pushed} config item(s) to KV (${where}).\n` : "\nNothing pushed.\n");
 
-// ── source-urls.json → config:source-urls ───────────────────────────────────
+//  source-urls.json -> config:source-urls 
 function pushSourceUrls() {
   const file = "source-urls.json";
   if (!existsSync(file)) {
-    console.error(`✗ ${file} not found. Copy source-urls.example.json → ${file}.`);
+    console.error(`${file} not found. Copy source-urls.example.json -> ${file}.`);
     return;
   }
   try {
     validateUrls(JSON.parse(readFileSync(file, "utf8")));
   } catch (err) {
-    console.error(`✗ ${file} is invalid: ${err.message}`);
+    console.error(`${file} is invalid: ${err.message}`);
     process.exit(1);
   }
-  console.log(`→ Pushing ${file} → KV["config:source-urls"]…`);
+  console.log(`-> Pushing ${file} -> KV["config:source-urls"]...`);
   kvPut("config:source-urls", file);
   pushed++;
 }
 
-// ── private-config.json (+ resume file) → config:profile ─────────────────────
+//  private-config.json (+ resume file) -> config:profile 
 function pushProfile() {
   const file = "private-config.json";
   if (!existsSync(file)) {
-    console.error(`✗ ${file} not found. Copy private-config.example.json → ${file}.`);
+    console.error(`${file} not found. Copy private-config.example.json -> ${file}.`);
     return;
   }
   let profile;
@@ -69,7 +69,7 @@ function pushProfile() {
     profile = JSON.parse(readFileSync(file, "utf8"));
     validateProfile(profile);
   } catch (err) {
-    console.error(`✗ ${file} is invalid: ${err.message}`);
+    console.error(`${file} is invalid: ${err.message}`);
     process.exit(1);
   }
 
@@ -79,11 +79,11 @@ function pushProfile() {
     const text = readFileSync(resumeFile, "utf8").trim();
     if (text) {
       profile.resumeText = text;
-      console.log(`  ↳ merged ${resumeFile} into resumeText (${text.length} chars)`);
+      console.log(`  -> merged ${resumeFile} into resumeText (${text.length} chars)`);
     }
   }
 
-  console.log(`→ Pushing ${file} → KV["config:profile"]…`);
+  console.log(`-> Pushing ${file} -> KV["config:profile"]...`);
   // Write the merged object to a temp file so wrangler can --path it.
   const tmp = join(tmpdir(), `rmos-profile-${process.pid}.json`);
   writeFileSync(tmp, JSON.stringify(profile));
@@ -95,7 +95,7 @@ function pushProfile() {
   }
 }
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+//  helpers 
 function kvPut(key, path) {
   const res = spawnSync(
     "npx",
@@ -103,7 +103,7 @@ function kvPut(key, path) {
     { stdio: "inherit", shell: process.platform === "win32" },
   );
   if (res.status !== 0) {
-    console.error(`✗ wrangler failed for ${key}. Is your KV namespace id set in wrangler.toml?`);
+    console.error(`wrangler failed for ${key}. Is your KV namespace id set in wrangler.toml?`);
     process.exit(res.status ?? 1);
   }
 }

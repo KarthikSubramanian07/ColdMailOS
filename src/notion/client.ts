@@ -28,7 +28,7 @@ export class NotionClient {
     return this.request<NotionPage>(`/pages/${pageId}`);
   }
 
-  /** Iterate every page in the database (paginated) — used to build the dedupe index. */
+  /** Iterate every page in the database (paginated) - used to build the dedupe index. */
   async *queryAll(databaseId: string): AsyncGenerator<NotionPage> {
     let cursor: string | undefined;
     do {
@@ -57,7 +57,7 @@ export class NotionClient {
     });
   }
 
-  /** Archive (move to trash) a page — used by Remove and dedupe. Recoverable in Notion. */
+  /** Archive (move to trash) a page - used by Remove and dedupe. Recoverable in Notion. */
   archivePage(pageId: string) {
     return this.request<NotionPage>(`/pages/${pageId}`, {
       method: "PATCH",
@@ -66,7 +66,7 @@ export class NotionClient {
   }
 }
 
-// ── Property builders (Notion's shape is verbose; keep it in one place) ──────
+//  Property builders (Notion's shape is verbose; keep it in one place) 
 
 export const prop = {
   title: (text: string) => ({ title: [{ text: { content: truncate(text, 2000) } }] }),
@@ -80,7 +80,7 @@ export const prop = {
   checkbox: (checked: boolean) => ({ checkbox: checked }),
 };
 
-// ── Property readers ────────────────────────────────────────────────────────
+//  Property readers 
 
 export function readTitle(page: NotionPage, name: string): string {
   const p = page.properties?.[name];
@@ -113,7 +113,7 @@ function splitRichText(text: string): { text: { content: string } }[] {
   return blocks;
 }
 
-// ── Minimal Notion response types (only what we read) ───────────────────────
+//  Minimal Notion response types (only what we read) 
 
 export interface NotionPage {
   id: string;
