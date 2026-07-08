@@ -25,6 +25,8 @@ export const PROPS = {
   draftSubject: "Draft Subject", // rich text
   draftBody: "Draft Body", // rich text
   gmailDraft: "Gmail Draft", // url
+  lastEmailed: "Last Emailed", // date - set when Status becomes Emailed / a follow-up drafts
+  followUps: "Follow-ups", // number - how many follow-ups have been drafted
 } as const;
 
 /** Status select options (create these as options on the Status column). */

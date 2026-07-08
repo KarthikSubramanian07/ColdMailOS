@@ -78,6 +78,8 @@ export const prop = {
   url: (url: string | null) => ({ url: url || null }),
   select: (name: string) => ({ select: { name } }),
   checkbox: (checked: boolean) => ({ checkbox: checked }),
+  number: (n: number) => ({ number: n }),
+  date: (iso: string) => ({ date: { start: iso } }),
 };
 
 //  Property readers 
@@ -101,6 +103,12 @@ export function readCheckbox(page: NotionPage, name: string): boolean {
 }
 export function readSelect(page: NotionPage, name: string): string | null {
   return page.properties?.[name]?.select?.name ?? null;
+}
+export function readNumber(page: NotionPage, name: string): number | null {
+  return page.properties?.[name]?.number ?? null;
+}
+export function readDate(page: NotionPage, name: string): string | null {
+  return page.properties?.[name]?.date?.start ?? null;
 }
 
 function truncate(s: string, max: number): string {
@@ -130,6 +138,8 @@ interface NotionProperty {
   url?: string | null;
   checkbox?: boolean;
   select?: { name: string } | null;
+  number?: number | null;
+  date?: { start: string } | null;
 }
 interface QueryResponse {
   results: NotionPage[];

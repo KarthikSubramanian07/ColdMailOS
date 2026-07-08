@@ -28,6 +28,10 @@ export interface Env {
   MAX_LLM_CALLS_PER_RUN: string;
   /** "false" disables research-before-draft insight gathering (default on). */
   ENABLE_INSIGHT?: string;
+  /** Days before the first follow-up (each later one is spaced further out). */
+  FOLLOWUP_DAYS?: string;
+  /** Max follow-ups drafted per contact. */
+  MAX_FOLLOWUPS?: string;
 }
 
 /** Outreach mode. Free string (not a strict enum) so new modes are trivial. */

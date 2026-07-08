@@ -28,6 +28,8 @@ LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
+FOLLOWUP_DAYS = "4"
+MAX_FOLLOWUPS = "2"
 
 [[kv_namespaces]]
 binding = "KV"
@@ -49,6 +51,8 @@ LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
+FOLLOWUP_DAYS = "4"
+MAX_FOLLOWUPS = "2"
 
 [[env.research.kv_namespaces]]
 binding = "KV"
@@ -72,6 +76,8 @@ LLM_THROTTLE_MS = "2200"
 MAX_SUBREQUESTS = "45"
 MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
+FOLLOWUP_DAYS = "4"
+MAX_FOLLOWUPS = "2"
 
 [[env.startups.kv_namespaces]]
 binding = "KV"

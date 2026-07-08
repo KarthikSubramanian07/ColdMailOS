@@ -53,6 +53,29 @@ export async function draftEmail(
   return parseDraft(content, profile);
 }
 
+/** A short, polite follow-up nudge on an earlier email (draft-only). */
+export async function draftFollowUp(
+  env: Env,
+  contact: Contact,
+  profile: ProfileConfig,
+  followUpNumber: number,
+): Promise<DraftResult> {
+  const sys =
+    systemPrompt(profile.mode) +
+    `\n\nThis is FOLLOW-UP #${followUpNumber} on an earlier unanswered email. Write a brief, ` +
+    `polite nudge: 2-4 sentences, acknowledge the prior note, add one small new angle or reason, ` +
+    `stay low-pressure, never guilt-trip. Keep the same signature.`;
+  const content = await groqJson(
+    env,
+    [
+      { role: "system", content: sys },
+      { role: "user", content: buildUserPrompt(contact, profile) },
+    ],
+    { temperature: 0.6, schema: DRAFT_JSON_SCHEMA },
+  );
+  return parseDraft(content, profile);
+}
+
 export function buildUserPrompt(
   contact: Contact,
   profile: ProfileConfig,
