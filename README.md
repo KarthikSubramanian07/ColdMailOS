@@ -230,26 +230,24 @@ The worker tells them apart: **Remove** archives the row; **Draft Email** drafts
 
 ## 🎨 The Notion dashboard
 
-Create a **Database - Table** with these columns (names are matched by the code - see [`src/notion/schema.ts`](src/notion/schema.ts)). Order them left-to-right like this for a clean triage flow:
+Create a blank **Database - Table**, then run `POST /setup?secret=...` once: it adds every column the code needs (correct types + select options) and best-effort arranges the view. You don't have to build the columns by hand. For reference, the core columns are:
 
-| # | Property | Type | Holds |
-|---|---|---|---|
-| 1 | **Contact Name** | Title | Person's name |
-| 2 | **Context Summary** | Text | What they work on (the decision info) |
-| 3 | **Entity** | Text | Lab / company |
-| 4 | **Role** | Text | Title |
-| 5 | **Backing/Affiliation** | Text | Center, or investor/accelerator |
-| 6 | **Email** | Email | Only if public - else blank |
-| 7 | **Status** | Select | Pipeline stage (options below) |
-| 8 | **Draft Email** | Checkbox | **Tick -> generate a draft** |
-| 9 | **Remove** | Checkbox | **Tick -> archive the row** |
-| 10 | **Gmail Draft** | URL | Deep-link into the draft |
-| 11 | **Profile URL** | URL | Their page |
-| 12 | **Source URL** | URL | Where we found them |
-| 13 | **Draft Subject** | Text | Written back by the tool |
-| 14 | **Draft Body** | Text | Written back by the tool |
+| Property | Type | Holds |
+|---|---|---|
+| **Contact Name** | Title | Person's name |
+| **Context Summary** | Text | What they work on (the decision info) |
+| **Entity** / **Role** / **Backing/Affiliation** | Text | Lab or company / title / center or investor |
+| **Email** | Email | Only if public; else blank |
+| **Email Confidence** | Select | Safe / Risky / Unknown (from verification) |
+| **Status** | Select | Pipeline stage (options below) |
+| **Draft Email** | Checkbox | **Tick -> generate a draft** |
+| **Remove** | Checkbox | **Tick -> archive the row** |
+| **Gmail Draft** / **Profile URL** / **Source URL** | URL | Draft deep-link / their page / where we found them |
+| **Follow-ups** / **Last Emailed** | Number / Date | Follow-up sequencing state |
+| **Opened** / **Clicked** / **Last Activity** | Number / Number / Date | Engagement (only when tracking is on) |
+| **Draft Subject** / **Draft Body** | Text | Written back by the tool |
 
-**Status options + colors:** `Not Contacted` (⚪️ gray) - `Emailed` (🔵 blue) - `Replied` (🟢 green) - `No Response` (🟡 yellow).
+**Status options + colors:** `Not Contacted` (gray) - `Emailed` (blue) - `Replied` (green) - `No Response` (yellow).
 
 ### Make it pretty (60 seconds, one-time)
 
@@ -289,12 +287,38 @@ NOT CONTACTED       EMAILED            REPLIED            NO RESPONSE
 | `LLM_THROTTLE_MS` | `2200` | Delay between LLM calls (Groq 30 req/min) |
 | `MAX_SUBREQUESTS` | `45` | Stay under the free-plan 50-subrequest/invocation cap |
 | `MAX_LLM_CALLS_PER_RUN` | `6` | Chunks extracted per run (resumable across runs) |
+| `ENABLE_INSIGHT` | `true` | Research the contact's page before drafting for a specific detail |
+| `FOLLOWUP_DAYS` | `4` | Days before the first follow-up (later ones spaced further out) |
+| `MAX_FOLLOWUPS` | `2` | Max follow-ups drafted per contact |
+| `ENABLE_CLICK_TRACKING` | `false` | Opt-in: rewrite draft links through a redirect to count clicks |
+| `ENABLE_OPEN_TRACKING` | `false` | Opt-in: embed an open pixel (unreliable; see note) |
 
 **Optional secret:** `JINA_API_KEY` enables JavaScript-rendered pages. Most faculty/lab sites are static HTML and need nothing. JS-heavy directories (some VC portfolios) return an empty shell to a plain fetch; with a Jina Reader key set, ColdMailOS escalates only those pages to [r.jina.ai](https://jina.ai/reader/), which renders JS server-side. Without the key it still works, it just skips JS-only content.
 
 **Config files** (gitignored, pushed to KV): `source-urls.json` -> `config:source-urls`; `private-config.json` (+ `resume.md`) -> `config:profile`.
 
-**Endpoints:** `POST /webhook/notion?secret=` (draft/remove) - `POST /scrape?secret=` (manual scrape) - `GET /health` - `GET /`.
+**Endpoints:**
+
+| Method + path | Purpose |
+|---|---|
+| `POST /setup?secret=` | Ensure all Notion columns exist + arrange the view (run once after creating the DB) |
+| `POST /scrape?secret=` | Manually trigger a scrape (resumable) |
+| `POST /followups?secret=` | Draft due follow-ups for rows in the Emailed state |
+| `POST /webhook/notion?secret=` | Notion automation target (draft / remove) |
+| `GET /unsubscribe?e=&t=` | One-click opt-out (HMAC-signed; adds to the suppression list) |
+| `GET /c/<id>`, `GET /o/<id>` | Click redirect / open pixel (only used when tracking is on) |
+| `GET /health`, `GET /` | Health check / info |
+
+### Verification, deliverability & engagement
+
+- **Email confidence.** Every found address is graded `Safe` / `Risky` / `Unknown` (syntax + role/disposable heuristics + MX via DNS-over-HTTPS) into an **Email Confidence** column. The Gmail draft pre-fills the recipient unless it's `Risky`. It never guesses an address.
+- **Suppression + unsubscribe.** Drafts to a real recipient carry a `List-Unsubscribe` one-click header pointing at `/unsubscribe`; opting out adds the address to a KV suppression list that's never drafted to again.
+- **Follow-ups.** `POST /followups` drafts a short, polite nudge for anyone still in the `Emailed` state after the cadence (up to `MAX_FOLLOWUPS`), driven entirely by Notion Status + dates so it needs no Gmail read access. Still draft-only.
+- **Tracking (opt-in, off by default).** `ENABLE_CLICK_TRACKING` rewrites links through a redirect (reliable). `ENABLE_OPEN_TRACKING` embeds a 1x1 pixel; opens are **unreliable** (Apple/Gmail proxy and prefetch inflate them) and "time spent" isn't measurable in email at all, so clicks are the trustworthy signal. Both update `Opened` / `Clicked` / `Last Activity` columns.
+
+### Optional: Cloudflare Queues
+
+Free-tier Queues can replace inline scraping with one job per URL (each in its own fresh-budget invocation, so large lists never time out). It's off by default: create the queue (`wrangler queues create coldmailos-research-scrape`) and uncomment the `[[queues.*]]` blocks in `wrangler.toml`. Without it, scraping runs inline and resumes across runs.
 
 ---
 
@@ -349,20 +373,27 @@ coldmailos/
     cron.ts               # budgeted, resumable scrape + dedupe archival
     config.ts             # loads per-user config + mode from KV
     groqClient.ts         # shared Groq client (structured outputs + retry)
-    llmSchema.ts          # zod + JSON schemas for extraction/drafting
+    llmSchema.ts          # zod + JSON schemas for extraction/drafting/insight
     security.ts           # constant-time secret compare
+    suppress.ts           # suppression list + HMAC unsubscribe tokens
+    insight.ts            # research-before-draft (one specific detail)
+    followups.ts          # cadence-driven follow-up drafts
+    tracking.ts           # opt-in click redirect / open pixel
+    queue.ts              # optional Queues driver (per-URL fan-out)
     types.ts              # shared types
+    verify/email.ts       # email grading (MX via DoH + role/disposable)
     extract/
       fetchPage.ts        # fetch + readability strip; optional Jina JS-render
       robots.ts           # robots.txt fetch/cache/enforce + shared User-Agent
       extractWithLLM.ts   # mode-based extraction (structured outputs)
       cache.ts            # content-hash skip + resumable extraction state (KV)
     notion/
-      client.ts           # Notion REST wrapper (query/create/update/archive)
+      client.ts           # Notion REST wrapper (retry, query/create/update/archive)
       schema.ts           # database property names
       sync.ts             # dedupe + duplicate detection
-    drafting/groq.ts      # mode-based outreach drafting
-    gmail/drafts.ts       # OAuth refresh + drafts.create (draft-only)
+      setup.ts            # ensure columns + arrange the view (Views API)
+    drafting/groq.ts      # mode-based outreach + follow-up drafting
+    gmail/drafts.ts       # OAuth refresh + drafts.create (draft-only, HTML/List-Unsubscribe)
     webhook/handler.ts    # verify secret -> draft, or remove/archive
   scripts/
     get-gmail-token.mjs   # one-time Gmail OAuth
