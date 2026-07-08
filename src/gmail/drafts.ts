@@ -9,6 +9,7 @@ export interface DraftInput {
   body: string;
   from?: string; // optional From display; defaults to the authenticated account
   listUnsubscribe?: string; // optional one-click unsubscribe URL (RFC 8058)
+  html?: string; // optional HTML body (used when tracking is enabled); else text/plain
 }
 
 export interface DraftOutput {
@@ -72,7 +73,8 @@ export async function createDraft(env: Env, input: DraftInput): Promise<DraftOut
 }
 
 /** Build an RFC 2822 message and base64url-encode it for the Gmail API. */
-export function buildRawMessage({ to, subject, body, from, listUnsubscribe }: DraftInput): string {
+export function buildRawMessage({ to, subject, body, from, listUnsubscribe, html }: DraftInput): string {
+  const contentType = html ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
   const headers = [
     from ? `From: ${sanitizeHeader(from)}` : null,
     to ? `To: ${sanitizeHeader(to)}` : null,
@@ -81,11 +83,11 @@ export function buildRawMessage({ to, subject, body, from, listUnsubscribe }: Dr
     to && listUnsubscribe ? `List-Unsubscribe: <${sanitizeHeader(listUnsubscribe)}>` : null,
     to && listUnsubscribe ? "List-Unsubscribe-Post: List-Unsubscribe=One-Click" : null,
     "MIME-Version: 1.0",
-    'Content-Type: text/plain; charset="UTF-8"',
+    `Content-Type: ${contentType}`,
     "Content-Transfer-Encoding: base64",
   ].filter(Boolean);
 
-  const message = `${headers.join("\r\n")}\r\n\r\n${bytesToBase64(utf8(body))}`;
+  const message = `${headers.join("\r\n")}\r\n\r\n${bytesToBase64(utf8(html ?? body))}`;
   return base64UrlEncode(message);
 }
 

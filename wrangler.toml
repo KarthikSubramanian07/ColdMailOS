@@ -30,6 +30,8 @@ MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
 FOLLOWUP_DAYS = "4"
 MAX_FOLLOWUPS = "2"
+ENABLE_CLICK_TRACKING = "false"
+ENABLE_OPEN_TRACKING = "false"
 
 [[kv_namespaces]]
 binding = "KV"
@@ -53,6 +55,8 @@ MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
 FOLLOWUP_DAYS = "4"
 MAX_FOLLOWUPS = "2"
+ENABLE_CLICK_TRACKING = "false"
+ENABLE_OPEN_TRACKING = "false"
 
 [[env.research.kv_namespaces]]
 binding = "KV"
@@ -78,6 +82,8 @@ MAX_LLM_CALLS_PER_RUN = "6"
 ENABLE_INSIGHT = "true"
 FOLLOWUP_DAYS = "4"
 MAX_FOLLOWUPS = "2"
+ENABLE_CLICK_TRACKING = "false"
+ENABLE_OPEN_TRACKING = "false"
 
 [[env.startups.kv_namespaces]]
 binding = "KV"

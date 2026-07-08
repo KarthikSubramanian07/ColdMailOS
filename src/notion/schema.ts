@@ -27,6 +27,9 @@ export const PROPS = {
   gmailDraft: "Gmail Draft", // url
   lastEmailed: "Last Emailed", // date - set when Status becomes Emailed / a follow-up drafts
   followUps: "Follow-ups", // number - how many follow-ups have been drafted
+  opened: "Opened", // number - open-pixel hits (opt-in; unreliable, see README)
+  clicked: "Clicked", // number - tracked-link clicks (opt-in; reliable)
+  lastActivity: "Last Activity", // date - last open/click seen
 } as const;
 
 /** Status select options (create these as options on the Status column). */

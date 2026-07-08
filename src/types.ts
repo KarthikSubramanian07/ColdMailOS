@@ -32,6 +32,10 @@ export interface Env {
   FOLLOWUP_DAYS?: string;
   /** Max follow-ups drafted per contact. */
   MAX_FOLLOWUPS?: string;
+  /** "true" rewrites draft links through /c for click tracking (opt-in, off by default). */
+  ENABLE_CLICK_TRACKING?: string;
+  /** "true" embeds an open pixel via /o (opt-in, off; unreliable, HTML email). */
+  ENABLE_OPEN_TRACKING?: string;
 }
 
 /** Outreach mode. Free string (not a strict enum) so new modes are trivial. */

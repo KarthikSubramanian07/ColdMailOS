@@ -4,6 +4,7 @@ import { handleWebhook } from "./webhook/handler";
 import { timingSafeEqual } from "./security";
 import { suppress, verifyUnsubscribe } from "./suppress";
 import { runFollowUps } from "./followups";
+import { recordEvent, pixelResponse } from "./tracking";
 
 /**
  * ColdMailOS Worker entry.
@@ -16,8 +17,28 @@ export default {
     ctx.waitUntil(runScrape(env).catch((err) => console.error("[scheduled] scrape failed:", err)));
   },
 
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // Click tracking: record then 302 to the target. Only for a known track id
+    // (random UUID), so this can't be abused as a generic open redirect.
+    if (url.pathname.startsWith("/c/")) {
+      const trackId = url.pathname.slice(3);
+      const target = url.searchParams.get("u");
+      const pageId = trackId ? await env.KV.get(`track:${trackId}`) : null;
+      if (pageId && target) {
+        ctx.waitUntil(recordEvent(env, trackId, "clicked", Date.now()));
+        return Response.redirect(target, 302);
+      }
+      return new Response("bad link\n", { status: 400 });
+    }
+
+    // Open pixel: return the 1x1 immediately, record in the background.
+    if (url.pathname.startsWith("/o/")) {
+      const trackId = url.pathname.slice(3);
+      if (trackId) ctx.waitUntil(recordEvent(env, trackId, "opened", Date.now()));
+      return pixelResponse();
+    }
 
     // Notion automation webhook (draft / remove).
     if (request.method === "POST" && url.pathname === "/webhook/notion") {

@@ -16,6 +16,7 @@ import { createDraft } from "../gmail/drafts";
 import { timingSafeEqual } from "../security";
 import { isSuppressed, unsubscribeUrl } from "../suppress";
 import { gatherInsight } from "../insight";
+import { newTrackId, registerTracking, toTrackedHtml } from "../tracking";
 
 /**
  * Handles the POST from Notion's "Send webhook" automations:
@@ -94,12 +95,24 @@ async function processRow(env: Env, pageId: string, origin: string) {
   const listUnsubscribe = prefillTo
     ? await unsubscribeUrl(origin, env.WEBHOOK_SECRET, prefillTo)
     : undefined;
+
+  // Optional engagement tracking (opt-in). Only meaningful with a recipient.
+  const clicks = env.ENABLE_CLICK_TRACKING === "true";
+  const opens = env.ENABLE_OPEN_TRACKING === "true";
+  let html: string | undefined;
+  if (prefillTo && (clicks || opens)) {
+    const trackId = newTrackId();
+    await registerTracking(env, trackId, pageId);
+    html = toTrackedHtml(origin, trackId, draft.body, { clicks, opens });
+  }
+
   const gmail = await createDraft(env, {
     to: prefillTo,
     subject: draft.subject,
     body: draft.body,
     from: profile.senderEmail,
     listUnsubscribe,
+    html,
   });
 
   // 4) Save the draft link back into Notion.
