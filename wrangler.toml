@@ -65,7 +65,20 @@ id = "bbbd6c16013a489795a92ba79b5edd22"
 [env.research.triggers]
 crons = []
 
-#  Startups deployment (founders / VC portfolios) 
+# Optional Queues driver (free tier). The cron fans out one job per URL, each in
+# its own fresh-budget invocation (no timeouts). Create the queue first:
+#   wrangler queues create coldmailos-research-scrape
+# then uncomment. Without it, scraping runs inline (resumable across runs).
+# [[env.research.queues.producers]]
+# binding = "SCRAPE_QUEUE"
+# queue = "coldmailos-research-scrape"
+# [[env.research.queues.consumers]]
+# queue = "coldmailos-research-scrape"
+# max_batch_size = 1
+# max_concurrency = 1
+# max_retries = 3
+
+#  Startups deployment (founders / VC portfolios)
 [env.startups]
 name = "coldmailos-startups"
 
@@ -92,7 +105,18 @@ id = "035bd93375784918b935e84cb28953a8"
 [env.startups.triggers]
 crons = []
 
-#  Secrets to set per env (never committed) 
+# Optional Queues driver (see the research env above). Create the queue first:
+#   wrangler queues create coldmailos-startups-scrape
+# [[env.startups.queues.producers]]
+# binding = "SCRAPE_QUEUE"
+# queue = "coldmailos-startups-scrape"
+# [[env.startups.queues.consumers]]
+# queue = "coldmailos-startups-scrape"
+# max_batch_size = 1
+# max_concurrency = 1
+# max_retries = 3
+
+#  Secrets to set per env (never committed)
 #   wrangler secret put GROQ_API_KEY --env research
 #   wrangler secret put NOTION_TOKEN --env research
 #   wrangler secret put NOTION_DATABASE_ID --env research

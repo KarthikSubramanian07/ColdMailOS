@@ -5,6 +5,7 @@ import { timingSafeEqual } from "./security";
 import { suppress, verifyUnsubscribe } from "./suppress";
 import { runFollowUps } from "./followups";
 import { recordEvent, pixelResponse } from "./tracking";
+import { enqueueAllUrls, handleScrapeBatch, type ScrapeMessage } from "./queue";
 
 /**
  * ColdMailOS Worker entry.
@@ -13,8 +14,14 @@ import { recordEvent, pixelResponse } from "./tracking";
  */
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    // Scheduled handlers get the full time budget, so awaiting inside waitUntil is fine.
-    ctx.waitUntil(runScrape(env).catch((err) => console.error("[scheduled] scrape failed:", err)));
+    // With a queue bound, fan out one job per URL (each gets a fresh budget);
+    // otherwise scrape inline (resumable across runs).
+    const job = env.SCRAPE_QUEUE ? enqueueAllUrls(env) : runScrape(env);
+    ctx.waitUntil(job.catch((err) => console.error("[scheduled] failed:", err)));
+  },
+
+  async queue(batch: MessageBatch<ScrapeMessage>, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await handleScrapeBatch(batch, env);
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

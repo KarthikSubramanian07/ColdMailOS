@@ -57,8 +57,10 @@ const CHUNK_OVERLAP = 500;
  * hash is saved ONLY when all its contacts are written. Also archives exact
  * duplicates.
  */
-export async function runScrape(env: Env): Promise<ScrapeReport> {
-  const urls = await loadSourceUrls(env);
+export async function runScrape(env: Env, onlyUrl?: string): Promise<ScrapeReport> {
+  // Queue consumers pass a single URL (one message = one fresh-budget invocation);
+  // the cron/manual path processes the whole configured list.
+  const urls = onlyUrl ? [onlyUrl] : await loadSourceUrls(env);
   const mode = await loadMode(env);
   const maxPages = intVar(env.MAX_PAGES_PER_RUN, 200);
   const throttleMs = intVar(env.LLM_THROTTLE_MS, 2200);

@@ -4,6 +4,8 @@
 export interface Env {
   /** KV: holds per-user config (config:*) and per-URL content hashes (hash:*). */
   KV: KVNamespace;
+  /** Optional Queues driver: when bound, the cron fans out one job per URL. */
+  SCRAPE_QUEUE?: Queue<{ url: string; attempts?: number }>;
 
   //  Secrets (wrangler secret put ...) 
   GROQ_API_KEY: string;
