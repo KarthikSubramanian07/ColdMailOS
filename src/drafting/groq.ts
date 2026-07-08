@@ -1,5 +1,6 @@
 import type { Contact, DraftResult, Env, Mode, ProfileConfig } from "../types";
 import { groqJson } from "../groqClient";
+import { DRAFT_JSON_SCHEMA, DraftZ } from "../llmSchema";
 
 const BANNED = `BANNED phrases: "I came across your profile", "I was impressed by your work", "I love what you're building", "I hope this email finds you well", "reach out", "align with", "passionate about", "delve", "in today's fast-paced".`;
 
@@ -44,7 +45,7 @@ export async function draftEmail(
       { role: "system", content: systemPrompt(profile.mode) },
       { role: "user", content: buildUserPrompt(contact, profile) },
     ],
-    0.6,
+    { temperature: 0.6, schema: DRAFT_JSON_SCHEMA },
   );
   return parseDraft(content, profile);
 }
@@ -52,14 +53,14 @@ export async function draftEmail(
 export function buildUserPrompt(contact: Contact, profile: ProfileConfig): string {
   const recipientLabel = profile.mode === "startup" ? "FOUNDER / COMPANY" : "RECIPIENT";
   const lines = [
-    `── ${recipientLabel} ──`,
+    ` ${recipientLabel} `,
     `Name: ${contact.contact_name}`,
     contact.role ? `Role: ${contact.role}` : null,
     contact.entity_name ? `Entity: ${contact.entity_name}` : null,
     contact.backing_or_affiliation ? `Backing/affiliation: ${contact.backing_or_affiliation}` : null,
-    `Context: ${contact.context_summary ?? "(not stated — keep it brief and honest)"}`,
+    `Context: ${contact.context_summary ?? "(not stated - keep it brief and honest)"}`,
     "",
-    "── SENDER (the person emailing) ──",
+    " SENDER (the person emailing) ",
     `Name: ${profile.name}`,
     `Background: ${profile.background}`,
     `Interests / goals: ${profile.interests}`,
@@ -75,10 +76,12 @@ export function buildUserPrompt(contact: Contact, profile: ProfileConfig): strin
 
 export function parseDraft(content: string, profile: ProfileConfig): DraftResult {
   try {
-    const obj = JSON.parse(content) as Partial<DraftResult>;
-    const subject = (obj.subject ?? "").trim();
-    const body = (obj.body ?? "").trim();
-    if (subject && body) return { subject, body };
+    const parsed = DraftZ.safeParse(JSON.parse(content));
+    if (parsed.success) {
+      const subject = parsed.data.subject.trim();
+      const body = parsed.data.body.trim();
+      if (subject && body) return { subject, body };
+    }
   } catch {
     // fall through
   }

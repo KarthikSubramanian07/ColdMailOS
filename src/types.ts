@@ -1,11 +1,11 @@
 /** Shared types for ColdMailOS. */
 
-/** Cloudflare Worker environment — bindings, secrets, and vars. */
+/** Cloudflare Worker environment - bindings, secrets, and vars. */
 export interface Env {
   /** KV: holds per-user config (config:*) and per-URL content hashes (hash:*). */
   KV: KVNamespace;
 
-  // ── Secrets (wrangler secret put …) ──────────────────────────────────────
+  //  Secrets (wrangler secret put ...) 
   GROQ_API_KEY: string;
   NOTION_TOKEN: string;
   NOTION_DATABASE_ID: string;
@@ -13,8 +13,10 @@ export interface Env {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GMAIL_REFRESH_TOKEN: string;
+  /** Optional: enables JS-rendered page extraction via Jina Reader (r.jina.ai). */
+  JINA_API_KEY?: string;
 
-  // ── Vars (wrangler.toml [vars]) ──────────────────────────────────────────
+  //  Vars (wrangler.toml [vars])
   GROQ_MODEL: string;
   NOTION_VERSION: string;
   ENABLE_PROFILE_SECOND_PASS: string;
@@ -45,9 +47,9 @@ export interface Contact {
   source_url?: string;
 }
 
-/** The user's private background — feeds the drafting prompt. */
+/** The user's private background - feeds the drafting prompt. */
 export interface ProfileConfig {
-  /** "research" | "startup" | … — selects extraction + drafting wording. */
+  /** "research" | "startup" | ... - selects extraction + drafting wording. */
   mode: Mode;
   name: string;
   background: string;

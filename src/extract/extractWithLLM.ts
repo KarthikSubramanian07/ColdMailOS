@@ -1,5 +1,11 @@
 import type { Contact, Env, Mode } from "../types";
 import { groqJson } from "../groqClient";
+import {
+  CONTACTS_JSON_SCHEMA,
+  EMAIL_JSON_SCHEMA,
+  ExtractionZ,
+  EmailHitZ,
+} from "../llmSchema";
 
 const COMMON_RULES = `Rules:
   - Do NOT fabricate any field. When in doubt, use null.
@@ -27,7 +33,7 @@ For each company on the page, return one entry:
   - contact_name:            the founder's name if listed, else null.
   - role:                    the founder's title (e.g. "Co-founder & CEO"), else null.
   - entity_name:             the company/startup name.
-  - email:                   see rules (portfolio pages rarely show one — that's fine, use null).
+  - email:                   see rules (portfolio pages rarely show one - that's fine, use null).
   - context_summary:         one or two sentences on what the company does, using ONLY page content. Else null.
   - backing_or_affiliation:  the VC firm or accelerator backing them, inferred from page context (e.g. "YC W26", "a16z-backed", or the fund's own name). Else null.
   - profile_url:             the company's website URL if linked, else null.
@@ -49,26 +55,44 @@ export async function extractContacts(
 ): Promise<Contact[]> {
   if (!pageText.trim()) return [];
 
-  const content = await groqJson(env, [
-    { role: "system", content: extractionPrompt(mode) },
-    { role: "user", content: `PAGE URL: ${sourceUrl}\n\nPAGE TEXT:\n${pageText}` },
-  ]);
+  const content = await groqJson(
+    env,
+    [
+      { role: "system", content: extractionPrompt(mode) },
+      { role: "user", content: `PAGE URL: ${sourceUrl}\n\nPAGE TEXT:\n${pageText}` },
+    ],
+    { schema: CONTACTS_JSON_SCHEMA },
+  );
 
-  return parseContacts(content).map((c) => normalizeContact(c, sourceUrl));
+  // Prefer the schema-validated shape; fall back to lenient parsing if the model
+  // (e.g. a non-structured-output model, or a truncated response) returns
+  // something zod rejects.
+  const validated = ExtractionZ.safeParse(safeJson(content));
+  const raw = validated.success ? validated.data.contacts : parseContacts(content);
+  return raw.map((c) => normalizeContact(c, sourceUrl));
 }
 
 /** Startup fallback: look for a visible contact/careers email on a company page. */
 export async function huntEmail(env: Env, pageText: string): Promise<string | null> {
   if (!pageText.trim()) return null;
-  const content = await groqJson(env, [
-    { role: "system", content: EMAIL_HUNT_PROMPT },
-    { role: "user", content: pageText },
-  ]);
+  const content = await groqJson(
+    env,
+    [
+      { role: "system", content: EMAIL_HUNT_PROMPT },
+      { role: "user", content: pageText },
+    ],
+    { schema: EMAIL_JSON_SCHEMA, maxTokens: 200 },
+  );
+  const parsed = EmailHitZ.safeParse(safeJson(content));
+  const email = parsed.success ? parsed.data.email : null;
+  return email ? validEmail(email) : null;
+}
+
+function safeJson(s: string): unknown {
   try {
-    const email = (JSON.parse(content) as { email?: unknown }).email;
-    return typeof email === "string" ? validEmail(email) : null;
+    return JSON.parse(s);
   } catch {
-    return null;
+    return {};
   }
 }
 
@@ -87,7 +111,10 @@ export function parseContacts(content: string): Partial<Contact>[] {
   return arr.filter((x): x is Partial<Contact> => !!x && typeof x === "object");
 }
 
-export function normalizeContact(c: Partial<Contact>, sourceUrl: string): Contact {
+export function normalizeContact(
+  c: Partial<Record<keyof Contact, unknown>>,
+  sourceUrl: string,
+): Contact {
   return {
     contact_name: clean(c.contact_name) ?? "",
     role: clean(c.role),

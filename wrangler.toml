@@ -1,26 +1,26 @@
-# ────────────────────────────────────────────────────────────────────────────
-#  ColdMailOS — Cloudflare Worker config
+# 
+#  ColdMailOS - Cloudflare Worker config
 #
 #  One codebase, deployed once per use case via Wrangler environments:
 #     npm run deploy:research    (wrangler deploy --env research)
 #     npm run deploy:startups    (wrangler deploy --env startups)
 #
 #  Each environment has its own Worker name, KV namespace, Notion database, and
-#  secrets — but shares this code. Secrets are set per env:
+#  secrets - but shares this code. Secrets are set per env:
 #     wrangler secret put NOTION_TOKEN --env research
 #     wrangler secret put NOTION_TOKEN --env startups
 #
 #  KV namespace ids below are not secrets. Create one per env with
 #  `wrangler kv namespace create KV` and paste the id in. (Forks: replace these.)
-# ────────────────────────────────────────────────────────────────────────────
+# 
 
 name = "coldmailos"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-# ── Base config (used by `wrangler dev`) ─────────────────────────────────────
+#  Base config (used by `wrangler dev`) 
 [vars]
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 NOTION_VERSION = "2022-06-28"
 ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
@@ -33,14 +33,14 @@ binding = "KV"
 id = "bbbd6c16013a489795a92ba79b5edd22"
 
 [triggers]
-crons = ["0 6 * * 1"]
+crons = []
 
-# ── Research deployment (professors / labs) ──────────────────────────────────
+#  Research deployment (professors / labs) 
 [env.research]
 name = "coldmailos-research"
 
 [env.research.vars]
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 NOTION_VERSION = "2022-06-28"
 ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
@@ -53,16 +53,16 @@ binding = "KV"
 id = "bbbd6c16013a489795a92ba79b5edd22"
 
 [env.research.triggers]
-crons = ["0 6 * * 1"]
+crons = []
 
-# ── Startups deployment (founders / VC portfolios) ───────────────────────────
+#  Startups deployment (founders / VC portfolios) 
 [env.startups]
 name = "coldmailos-startups"
 
 [env.startups.vars]
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 NOTION_VERSION = "2022-06-28"
-# Startup portfolio pages rarely show emails — the fallback email hunt is always
+# Startup portfolio pages rarely show emails - the fallback email hunt is always
 # on in startup mode (independent of this flag).
 ENABLE_PROFILE_SECOND_PASS = "false"
 MAX_PAGES_PER_RUN = "200"
@@ -75,9 +75,9 @@ binding = "KV"
 id = "035bd93375784918b935e84cb28953a8"
 
 [env.startups.triggers]
-crons = ["0 6 * * 1"]
+crons = []
 
-# ── Secrets to set per env (never committed) ─────────────────────────────────
+#  Secrets to set per env (never committed) 
 #   wrangler secret put GROQ_API_KEY --env research
 #   wrangler secret put NOTION_TOKEN --env research
 #   wrangler secret put NOTION_DATABASE_ID --env research
