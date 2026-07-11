@@ -25,6 +25,7 @@
     "deploy:research": "wrangler deploy --env research",
     "deploy:startups": "wrangler deploy --env startups",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "tail": "wrangler tail --format pretty",
@@ -33,7 +34,10 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
     "typescript": "^5.6.2",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.9",
     "wrangler": "^4.107.0"
   },
