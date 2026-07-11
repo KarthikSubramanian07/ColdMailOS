@@ -1,7 +1,7 @@
 import type { Env } from "./types";
 import { runScrape } from "./cron";
 import { handleWebhook } from "./webhook/handler";
-import { timingSafeEqual } from "./security";
+import { isSafeHttpUrl, checkSharedSecret } from "./security";
 import { suppress, verifyUnsubscribe } from "./suppress";
 import { runFollowUps } from "./followups";
 import { recordEvent, pixelResponse } from "./tracking";
@@ -30,11 +30,12 @@ export default {
 
     // Click tracking: record then 302 to the target. Only for a known track id
     // (random UUID), so this can't be abused as a generic open redirect.
+    // Also restrict the target to http(s) so javascript:/data: links cannot slip through.
     if (url.pathname.startsWith("/c/")) {
       const trackId = url.pathname.slice(3);
       const target = url.searchParams.get("u");
       const pageId = trackId ? await env.KV.get(`track:${trackId}`) : null;
-      if (pageId && target) {
+      if (pageId && target && isSafeHttpUrl(target)) {
         ctx.waitUntil(recordEvent(env, trackId, "clicked", Date.now()));
         return Response.redirect(target, 302);
       }
@@ -57,7 +58,7 @@ export default {
     // the request lifetime instead of being cancelled ~30s after the response.
     if (request.method === "POST" && url.pathname === "/scrape") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
-      if (!timingSafeEqual(secret, env.WEBHOOK_SECRET)) {
+      if (!checkSharedSecret(secret, env.WEBHOOK_SECRET)) {
         return new Response("unauthorized\n", { status: 401 });
       }
       try {
@@ -89,7 +90,7 @@ export default {
     // Ensure the Notion DB has every column the code needs + arrange the view.
     if (request.method === "POST" && url.pathname === "/setup") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
-      if (!timingSafeEqual(secret, env.WEBHOOK_SECRET)) {
+      if (!checkSharedSecret(secret, env.WEBHOOK_SECRET)) {
         return new Response("unauthorized\n", { status: 401 });
       }
       try {
@@ -107,7 +108,7 @@ export default {
     // Draft due follow-ups for rows in the Emailed state (draft-only). Secret-gated.
     if (request.method === "POST" && url.pathname === "/followups") {
       const secret = request.headers.get("X-RMOS-Secret") ?? url.searchParams.get("secret") ?? "";
-      if (!timingSafeEqual(secret, env.WEBHOOK_SECRET)) {
+      if (!checkSharedSecret(secret, env.WEBHOOK_SECRET)) {
         return new Response("unauthorized\n", { status: 401 });
       }
       try {

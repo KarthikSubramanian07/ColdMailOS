@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: typecheck + test
+    name: lint · typecheck · test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -23,6 +23,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck

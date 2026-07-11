@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { timingSafeEqual } from "../src/security";
+import { timingSafeEqual, checkSharedSecret, isSafeHttpUrl } from "../src/security";
 
 describe("timingSafeEqual", () => {
   it("is true only for identical strings", () => {
@@ -12,5 +12,28 @@ describe("timingSafeEqual", () => {
   });
   it("handles empty strings", () => {
     expect(timingSafeEqual("", "")).toBe(true);
+  });
+});
+
+describe("checkSharedSecret", () => {
+  it("rejects when the configured secret is missing", () => {
+    expect(checkSharedSecret("", "")).toBe(false);
+    expect(checkSharedSecret("x", "")).toBe(false);
+    expect(checkSharedSecret("x", undefined)).toBe(false);
+  });
+  it("accepts a matching secret", () => {
+    expect(checkSharedSecret("abc", "abc")).toBe(true);
+    expect(checkSharedSecret("abc", "xyz")).toBe(false);
+  });
+});
+
+describe("isSafeHttpUrl", () => {
+  it("allows http and https", () => {
+    expect(isSafeHttpUrl("https://example.com/x")).toBe(true);
+    expect(isSafeHttpUrl("http://example.com")).toBe(true);
+  });
+  it("rejects dangerous schemes", () => {
+    expect(isSafeHttpUrl("javascript:alert(1)")).toBe(false);
+    expect(isSafeHttpUrl("data:text/html,hi")).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ import {
 import { PROPS, EMAIL_CONFIDENCE } from "../notion/schema";
 import { draftEmail } from "../drafting/groq";
 import { createDraft } from "../gmail/drafts";
-import { timingSafeEqual } from "../security";
+import { checkSharedSecret } from "../security";
 import { isSuppressed, unsubscribeUrl } from "../suppress";
 import { gatherInsight } from "../insight";
 import { newTrackId, registerTracking, toTrackedHtml } from "../tracking";
@@ -135,7 +135,7 @@ function verifySecret(request: Request, env: Env): boolean {
     request.headers.get("x-rmos-secret") ??
     url.searchParams.get("secret") ??
     "";
-  return timingSafeEqual(provided, env.WEBHOOK_SECRET);
+  return checkSharedSecret(provided, env.WEBHOOK_SECRET);
 }
 
 function extractChallenge(body: unknown): string | null {
